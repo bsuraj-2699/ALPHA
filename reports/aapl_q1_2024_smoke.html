@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"/>
+  <title>Backtest · AAPL (US) 2024-01-02→2024-03-29</title>
+  <style>
+* { box-sizing: border-box; }
+:root {
+  --bg: #0a0c0f;
+  --fg: #e7e9ee;
+  --muted: #8a93a3;
+  --card: #11141a;
+  --border: rgba(231,233,238,0.08);
+  --buy: #00e5a0;
+  --sell: #ff4d6d;
+  --warn: #f5a623;
+  --gold: #c9a84c;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Segoe UI", "IBM Plex Sans", system-ui, sans-serif;
+  --display: "Playfair Display", Georgia, serif;
+}
+html, body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; font-family: var(--sans); }
+main { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+header.hero { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 32px; }
+.eyebrow { display: block; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+h1 { font-family: var(--display); font-size: 32px; margin: 0 0 6px; }
+h2 { font-family: var(--display); font-size: 20px; margin: 0 0 12px; font-weight: 600; }
+.meta, .muted { color: var(--muted); }
+.muted { font-weight: 400; font-size: 0.9em; }
+section { margin-bottom: 36px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+.card-value { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; }
+
+.tone-buy { color: var(--buy); }
+.tone-sell { color: var(--sell); }
+.tone-warn { color: var(--warn); }
+.tone-gold { color: var(--gold); }
+.tone-muted { color: var(--muted); }
+
+.chart { width: 100%; max-height: 360px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.legend { display: flex; gap: 16px; padding: 8px 12px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+table.data thead th { background: rgba(231,233,238,0.04); text-align: left; padding: 10px 12px; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+table.data tbody td { padding: 9px 12px; border-top: 1px solid var(--border); vertical-align: middle; }
+table.data tbody tr:hover { background: rgba(231,233,238,0.025); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { text-align: right; }
+.empty { text-align: center; color: var(--muted); padding: 24px !important; }
+
+footer { color: var(--muted); font-size: 12px; padding-top: 32px; border-top: 1px solid var(--border); }
+code { font-family: var(--mono); background: rgba(231,233,238,0.05); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head><body>
+<main>
+<header class="hero">
+  <span class="eyebrow">fin-agent · backtest</span>
+  <h1>Backtest · AAPL (US) 2024-01-02→2024-03-29</h1>
+  <p class="meta">
+    1 ticker(s) · 6 decision(s) emitted ·
+    7 skipped · cadence every 5 trading day(s)
+  </p>
+</header>
+
+<section>
+  <h2>Performance</h2>
+  <div class="cards"><div class="card"><span class="card-label">Starting</span><span class="card-value tone-muted">$100,000</span></div><div class="card"><span class="card-label">Ending</span><span class="card-value tone-sell">$100,000</span></div><div class="card"><span class="card-label">Total return</span><span class="card-value tone-sell">0.00%</span></div><div class="card"><span class="card-label">CAGR</span><span class="card-value tone-muted">0.00%</span></div><div class="card"><span class="card-label">Sharpe</span><span class="card-value tone-muted">0.00</span></div><div class="card"><span class="card-label">Sortino</span><span class="card-value tone-muted">0.00</span></div><div class="card"><span class="card-label">Max drawdown</span><span class="card-value tone-sell">-0.00%</span></div><div class="card"><span class="card-label">Trades</span><span class="card-value tone-muted">0</span></div><div class="card"><span class="card-label">Hit rate</span><span class="card-value tone-gold">0.0%</span></div><div class="card"><span class="card-label">Avg hold</span><span class="card-value tone-muted">0.0d</span></div></div>
+</section>
+
+<section>
+  <h2>Equity curve <span class="muted">(normalised to 100)</span></h2>
+  <svg viewBox="0 0 900 360" class="chart" xmlns="http://www.w3.org/2000/svg"><line x1="36" y1="324.0" x2="864" y2="324.0" stroke="rgba(231,233,238,0.05)" stroke-width="1"/><text x="30.0" y="327.0" text-anchor="end" font-size="10" fill="rgba(231,233,238,0.5)">90.2</text><line x1="36" y1="252.0" x2="864" y2="252.0" stroke="rgba(231,233,238,0.05)" stroke-width="1"/><text x="30.0" y="255.0" text-anchor="end" font-size="10" fill="rgba(231,233,238,0.5)">95.6</text><line x1="36" y1="180.0" x2="864" y2="180.0" stroke="rgba(231,233,238,0.05)" stroke-width="1"/><text x="30.0" y="183.0" text-anchor="end" font-size="10" fill="rgba(231,233,238,0.5)">100.9</text><line x1="36" y1="108.0" x2="864" y2="108.0" stroke="rgba(231,233,238,0.05)" stroke-width="1"/><text x="30.0" y="111.0" text-anchor="end" font-size="10" fill="rgba(231,233,238,0.5)">106.3</text><line x1="36" y1="36.0" x2="864" y2="36.0" stroke="rgba(231,233,238,0.05)" stroke-width="1"/><text x="30.0" y="39.0" text-anchor="end" font-size="10" fill="rgba(231,233,238,0.5)">111.7</text><path d="M 36.0,192.7 L 45.6,192.7 L 55.3,192.7 L 64.9,192.7 L 93.8,192.7 L 103.4,192.7 L 113.0,192.7 L 122.7,192.7 L 132.3,192.7 L 170.8,192.7 L 180.4,192.7 L 190.0,192.7 L 199.7,192.7 L 228.6,192.7 L 238.2,192.7 L 247.8,192.7 L 257.4,192.7 L 267.1,192.7 L 296.0,192.7 L 305.6,192.7 L 315.2,192.7 L 324.8,192.7 L 334.5,192.7 L 363.3,192.7 L 373.0,192.7 L 382.6,192.7 L 392.2,192.7 L 401.9,192.7 L 430.7,192.7 L 440.4,192.7 L 450.0,192.7 L 459.6,192.7 L 469.3,192.7 L 507.8,192.7 L 517.4,192.7 L 527.0,192.7 L 536.7,192.7 L 565.5,192.7 L 575.2,192.7 L 584.8,192.7 L 594.4,192.7 L 604.0,192.7 L 632.9,192.7 L 642.6,192.7 L 652.2,192.7 L 661.8,192.7 L 671.4,192.7 L 700.3,192.7 L 710.0,192.7 L 719.6,192.7 L 729.2,192.7 L 738.8,192.7 L 767.7,192.7 L 777.3,192.7 L 787.0,192.7 L 796.6,192.7 L 806.2,192.7 L 835.1,192.7 L 844.7,192.7 L 854.4,192.7 L 864.0,192.7" fill="none" stroke="#c9a84c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><path d="M 36.0,192.7 L 45.6,202.7 L 55.3,219.5 L 64.9,224.8 L 93.8,193.3 L 103.4,196.3 L 113.0,188.7 L 122.7,193.1 L 132.3,190.7 L 170.8,207.2 L 180.4,214.0 L 190.0,171.2 L 199.7,150.1 L 228.6,133.3 L 238.2,124.0 L 247.8,128.9 L 257.4,131.3 L 267.1,143.9 L 296.0,148.9 L 305.6,175.4 L 315.2,201.6 L 324.8,183.9 L 334.5,191.2 L 363.3,178.0 L 373.0,166.3 L 382.6,165.6 L 392.2,173.4 L 401.9,167.9 L 430.7,180.1 L 440.4,195.3 L 450.0,201.7 L 459.6,203.8 L 469.3,215.0 L 507.8,220.4 L 517.4,214.9 L 527.0,200.1 L 536.7,213.5 L 565.5,223.3 L 575.2,212.7 L 584.8,221.4 L 594.4,226.2 L 604.0,234.1 L 632.9,266.9 L 642.6,302.8 L 652.2,310.0 L 661.8,310.9 L 671.4,298.4 L 700.3,283.9 L 710.0,280.4 L 719.6,295.6 L 729.2,282.1 L 738.8,284.8 L 767.7,276.9 L 777.3,259.9 L 787.0,241.2 L 796.6,293.8 L 806.2,287.3 L 835.1,297.6 L 844.7,305.8 L 854.4,279.8 L 864.0,293.0" fill="none" stroke="#00e5a0" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><path d="M 36.0,192.7 L 45.6,203.4 L 55.3,207.9 L 64.9,205.5 L 93.8,186.9 L 103.4,188.9 L 113.0,181.3 L 122.7,182.2 L 132.3,181.2 L 170.8,186.2 L 180.4,193.7 L 190.0,182.0 L 199.7,165.5 L 228.6,162.5 L 238.2,158.5 L 247.8,157.4 L 257.4,150.2 L 267.1,151.1 L 296.0,140.7 L 305.6,141.6 L 315.2,163.8 L 324.8,146.8 L 334.5,132.1 L 363.3,136.6 L 373.0,133.3 L 382.6,121.9 L 392.2,121.1 L 401.9,113.0 L 430.7,114.4 L 440.4,133.6 L 450.0,120.3 L 459.6,112.1 L 469.3,118.9 L 507.8,127.4 L 517.4,125.6 L 527.0,96.1 L 536.7,95.6 L 565.5,101.0 L 575.2,98.5 L 584.8,100.9 L 594.4,93.5 L 604.0,82.0 L 632.9,83.7 L 642.6,98.4 L 652.2,91.1 L 661.8,76.3 L 671.4,85.8 L 700.3,87.4 L 710.0,71.3 L 719.6,74.1 L 729.2,78.3 L 738.8,87.6 L 767.7,78.5 L 777.3,70.4 L 787.0,57.4 L 796.6,52.7 L 806.2,54.8 L 835.1,59.2 L 844.7,63.3 L 854.4,50.7 L 864.0,49.1" fill="none" stroke="#8a93a3" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><text x="36.0" y="352.0" text-anchor="middle" font-size="10" fill="rgba(231,233,238,0.5)">2024-01-02</text><text x="450.0" y="352.0" text-anchor="middle" font-size="10" fill="rgba(231,233,238,0.5)">2024-02-14</text><text x="864.0" y="352.0" text-anchor="middle" font-size="10" fill="rgba(231,233,238,0.5)">2024-03-28</text></svg><div class="legend"><span class="legend-item"><span class="legend-swatch" style="background:#c9a84c"></span>Strategy (agent)</span><span class="legend-item"><span class="legend-swatch" style="background:#00e5a0"></span>Buy &amp; Hold (basket)</span><span class="legend-item"><span class="legend-swatch" style="background:#8a93a3"></span>Buy &amp; Hold (index_^GSPC)</span></div>
+</section>
+
+<section>
+  <h2>Strategy vs benchmarks</h2>
+  <table class='data'><thead><tr><th>Strategy</th><th>Total return</th><th>CAGR</th><th>Sharpe</th><th>Max DD</th><th>Ending</th></tr></thead><tbody><tr><td>Strategy (agent)</td><td class='mono num tone-sell'>0.00%</td><td class='mono num'>0.00%</td><td class='mono num'>0.00</td><td class='mono num tone-sell'>-0.00%</td><td class='mono num'>$100,000</td></tr><tr><td>Buy &amp; Hold (basket)</td><td class='mono num tone-sell'>-7.51%</td><td class='mono num'>-28.21%</td><td class='mono num'>-1.55</td><td class='mono num tone-sell'>-13.30%</td><td class='mono num'>$92,494</td></tr><tr><td>Buy &amp; Hold (index_^GSPC)</td><td class='mono num tone-buy'>+10.74%</td><td class='mono num'>+54.24%</td><td class='mono num'>4.02</td><td class='mono num tone-sell'>-1.66%</td><td class='mono num'>$110,742</td></tr></tbody></table>
+</section>
+
+<section>
+  <h2>Trades <span class="muted">(0)</span></h2>
+  <table class='data'><thead><tr><th>Ticker</th><th>Entry</th><th>Exit</th><th>Entry $</th><th>Exit $</th><th>P&L %</th><th>P&L</th><th>Hold</th><th>Why</th><th>Signal</th><th>Overrides</th></tr></thead><tbody><tr><td colspan='11' class='empty'>No trades.</td></tr></tbody></table>
+</section>
+
+<section>
+  <h2>Decision log <span class="muted">(6)</span></h2>
+  <table class='data'><thead><tr><th>Date</th><th>Ticker</th><th>Signal</th><th>Conf</th><th>Size</th><th>Entry</th><th>Stop</th><th>Target</th><th>Action</th><th>Overrides</th></tr></thead><tbody><tr><td class='mono'>2024-02-20</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>50.0</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr><tr><td class='mono'>2024-02-26</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>50.0</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr><tr><td class='mono'>2024-03-04</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>50.7</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr><tr><td class='mono'>2024-03-11</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>50.2</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr><tr><td class='mono'>2024-03-18</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>50.9</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr><tr><td class='mono'>2024-03-25</td><td class='mono'>AAPL</td><td class='mono tone-muted'>HOLD</td><td class='mono num'>49.4</td><td class='mono num'>0.0%</td><td class='mono num'>—</td><td class='mono num'>—</td><td class='mono num'>—</td><td>skipped_hold</td><td class='mono'>—</td></tr></tbody></table>
+</section>
+
+<footer>
+  Generated by <code>eval/reports.py</code> · self-contained HTML, opens anywhere.
+</footer>
+</main>
+</body></html>

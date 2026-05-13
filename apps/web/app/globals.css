@@ -1,0 +1,211 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* `dark` is the only mode we ship for now — the entire app is built on a
+   #0a0c0f surface — but we keep the variant declared so future light-mode
+   work is a single class flip away. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens.
+ *
+ * Two layers, by convention:
+ *   1. Raw CSS variables on :root — the source of truth, brand-aligned.
+ *   2. `@theme inline` aliases — what Tailwind 4 reads to generate utility
+ *      classes (bg-*, text-*, border-*, etc).
+ *
+ * Brand tokens (--buy / --sell / --neutral / --gold) are exposed as
+ * Tailwind utilities under semantic names that don't collide with the
+ * built-in palettes:
+ *   bg-buy     -> #00e5a0   (long / bullish)
+ *   bg-sell    -> #ff4d6d   (short / bearish)
+ *   bg-warn    -> #f5a623   (the "neutral" attention/warn signal — renamed
+ *                            so it doesn't shadow Tailwind's `neutral`
+ *                            grayscale palette)
+ *   bg-gold    -> #c9a84c   (premium accent)
+ */
+
+:root {
+  /* Surface */
+  --background: #0a0c0f;
+  --foreground: #e7e9ee;
+
+  --card: #11141a;
+  --card-foreground: #e7e9ee;
+  --popover: #11141a;
+  --popover-foreground: #e7e9ee;
+
+  --primary: #e7e9ee;
+  --primary-foreground: #0a0c0f;
+  --secondary: #1a1f29;
+  --secondary-foreground: #e7e9ee;
+  --muted: #14181f;
+  --muted-foreground: #8a93a3;
+  --accent: #1a1f29;
+  --accent-foreground: #e7e9ee;
+  --destructive: #ff4d6d;
+  --destructive-foreground: #f7f8fa;
+
+  --border: rgba(231, 233, 238, 0.08);
+  --input: rgba(231, 233, 238, 0.10);
+  --ring: #c9a84c;
+
+  /* Brand — exact values from the rules document */
+  --buy: #00e5a0;
+  --sell: #ff4d6d;
+  --neutral: #f5a623;
+  --gold: #c9a84c;
+
+  --radius: 0.625rem;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-buy: var(--buy);
+  --color-sell: var(--sell);
+  --color-warn: var(--neutral);
+  --color-gold: var(--gold);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular",
+    Menlo, Consolas, monospace;
+  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Numbers should always be tabular by default — anything in mono inherits. */
+  .font-mono,
+  [class*="tabular"],
+  code,
+  kbd,
+  samp,
+  pre {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Heading default — pages should still pick `font-display` explicitly,
+     but make h1/h2 lean on the serif by default. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* Better default scrollbars on dark */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(231, 233, 238, 0.08);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(231, 233, 238, 0.16);
+  }
+
+  /* Focus ring uses the gold accent for a "premium" feel. */
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Animations                                                       */
+/* ---------------------------------------------------------------- */
+
+/* The pulsing green dot for the market-open indicator. We render two
+   stacked dots: a static core + a halo that scales/fades on a 2s loop. */
+@keyframes market-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.65;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.animate-market-pulse {
+  animation: market-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton shimmer for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(231, 233, 238, 0.04) 0%,
+    rgba(231, 233, 238, 0.10) 50%,
+    rgba(231, 233, 238, 0.04) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Subtle glow used for hover-active nav items */
+.glow-gold {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--gold) 30%, transparent),
+    0 0 24px -8px color-mix(in oklab, var(--gold) 50%, transparent);
+}

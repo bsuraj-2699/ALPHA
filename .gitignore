@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.claude/settings.local.json
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+node_modules/
+.DS_Store
+.rag/
+
+# Next.js / frontend build
+.next/
+out/
+.turbo/
+apps/web/.env.local
+
+# Local Excel exports from scripts/export_runs_to_excel.py
+exports/*.xlsx

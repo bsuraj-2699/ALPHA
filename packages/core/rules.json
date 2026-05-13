@@ -1,0 +1,1652 @@
+{
+  "version": "2.0.1",
+  "schema_version": "2026-05-03",
+  "description": "Multi-mode (intraday / short_term / long_term) scoring engine for IN equities. Backward-compatible with v1.0.1 \u2014 all 36 rules, 5 overrides, IDs, and the universal scoring_formula are preserved verbatim. The 'modes' object lets the runtime select which pillars contribute to composite without rewriting rules; the 'schedule' sub-object inside each mode tells the API scheduler when to dispatch fresh runs.",
+  "_changelog": [
+    "v2.0.1: Renamed mode keys swing\u2192short_term, investing\u2192long_term to match the Python `Mode` literal and the frontend `StrategyMode`. Added a 'schedule' object per mode and a top-level scheduler block under auto_mode_logic.markets.IN so apps/api/scheduler.py can load cadence + market hours from the same file.",
+    "v2.0.0: Added 'modes' (intraday/short_term/long_term), 'auto_mode_logic', 'confidence_normalization'. Existing pillars/rules/overrides/thresholds unchanged.",
+    "v1.0.1: Sentiment pillar overhauled to news NLP + FII/DII + sector RS + price/volume spike + VIX contrarian. Earnings Guidance rule removed.",
+    "v1.0.0: Initial framework."
+  ],
+  "pillars": {
+    "fundamentals": {
+      "weight": 0.25,
+      "description": "Earnings, profitability, cash flow"
+    },
+    "balance_sheet": {
+      "weight": 0.15,
+      "description": "Debt, liquidity, solvency"
+    },
+    "trend": {
+      "weight": 0.1,
+      "description": "Moving averages, price structure"
+    },
+    "momentum": {
+      "weight": 0.12,
+      "description": "Oscillators, volume, breakouts"
+    },
+    "sentiment": {
+      "weight": 0.15,
+      "description": "News NLP, FII/DII flows, sector RS, price/volume spikes, India VIX contrarian"
+    },
+    "macro": {
+      "weight": 0.1,
+      "description": "Interest rates, GDP, inflation, sector rotation"
+    },
+    "valuation": {
+      "weight": 0.18,
+      "description": "P/E, PEG, EV/EBITDA, P/B, dividend"
+    },
+    "risk": {
+      "weight": 0.12,
+      "description": "Beta (market-regime adjusted) and India VIX volatility risk"
+    }
+  },
+  "_pillar_weight_note": "Risk pillar (0.12) now comprises Beta + India VIX volatility only; Earnings Guidance rule removed. Sentiment pillar (0.15) covers: news NLP score, FII/DII flows (IN), sector RS, intraday price+volume spike, and India VIX contrarian (IN). Sentiment and valuation (0.18) together carry 0.33 weight, unchanged from prior version. Overall composite formula unchanged.",
+  "scoring_formula": {
+    "expression": "score = (fundamentals * 0.25) + (technicals * 0.20) + (sentiment * 0.15) + (valuation * 0.18) + (macro * 0.10) + (risk * 0.12)",
+    "technicals_composition": "technicals = (trend_score * 0.625) + (momentum_score * 0.375)",
+    "sentiment_intra_pillar": "sentiment_score = weighted_mean(SENT-001..005 rule scores) using each rule's category_weight",
+    "risk_intra_pillar": "risk_score = weighted_mean(RISK-001 beta + RISK-003 vix_vol) each at category_weight=0.50",
+    "output_range": [
+      0,
+      100
+    ],
+    "_change_notes": [
+      "Sentiment: replaced analyst-ratings/insider/short-interest/institutional/news-NLP rules with news-NLP, FII-DII-flow, sector-RS, price-volume-spike, VIX-contrarian",
+      "Risk: removed RISK-002 (Earnings Guidance); redistributed its 0.40 weight equally to RISK-001 (0.50) and RISK-003 (0.50)",
+      "Top-level composite weights and thresholds unchanged"
+    ]
+  },
+  "thresholds": [
+    {
+      "min": 80,
+      "max": 100,
+      "signal": "STRONG_BUY",
+      "action": "Full position; consider leverage if risk-tolerant",
+      "notes": "All pillars aligned. Rare confluence signal."
+    },
+    {
+      "min": 65,
+      "max": 79.99,
+      "signal": "BUY",
+      "action": "Initiate position; scale in on pullbacks",
+      "notes": "Most factors positive. Normal entry point."
+    },
+    {
+      "min": 45,
+      "max": 64.99,
+      "signal": "HOLD",
+      "action": "Hold existing; no new entry; tight stop-loss",
+      "notes": "Mixed signals. Wait for confirmation."
+    },
+    {
+      "min": 25,
+      "max": 44.99,
+      "signal": "SELL",
+      "action": "Trim position; exit on bounces",
+      "notes": "Majority of signals deteriorating."
+    },
+    {
+      "min": 0,
+      "max": 24.99,
+      "signal": "STRONG_SELL",
+      "action": "Full exit; consider protective puts",
+      "notes": "Systemic breakdown across pillars."
+    }
+  ],
+  "modes": {
+    "intraday": {
+      "description": "5-min polling between 09:15 and 15:30 IST. Only fast-reacting pillars matter; fundamentals/valuation/macro carry zero weight because they barely move within a session.",
+      "active_pillars": [
+        "technicals",
+        "sentiment",
+        "risk"
+      ],
+      "skip_screener_fetch": true,
+      "polling_interval_seconds": 300,
+      "schedule": {
+        "type": "interval_during_market_hours",
+        "interval_seconds": 300,
+        "market": "IN",
+        "weekdays": "Mon-Fri",
+        "_consumer": "apps.api.scheduler.IntradayScheduler"
+      },
+      "primary_chart_interval": "5minute",
+      "lookback_candles": 78,
+      "pillar_weights": {
+        "technicals": 0.5,
+        "sentiment": 0.25,
+        "risk": 0.25,
+        "macro": 0.0,
+        "fundamentals": 0.0
+      },
+      "category_weights": {
+        "trend": 0.3125,
+        "momentum": 0.1875,
+        "sentiment": 0.25,
+        "risk": 0.25,
+        "fundamentals": 0.0,
+        "balance_sheet": 0.0,
+        "valuation": 0.0,
+        "macro": 0.0
+      },
+      "thresholds": [
+        {
+          "min": 70,
+          "max": 100,
+          "signal": "STRONG_BUY",
+          "action": "Aggressive long; tight 0.5% stop",
+          "notes": "All intraday-active pillars confluent. Rare in a session."
+        },
+        {
+          "min": 65,
+          "max": 69.99,
+          "signal": "BUY",
+          "action": "Initiate intraday long; 0.75% stop",
+          "notes": "Technicals strong, sentiment supportive."
+        },
+        {
+          "min": 45,
+          "max": 64.99,
+          "signal": "HOLD",
+          "action": "No new entry; manage existing only",
+          "notes": "Mixed intraday signals \u2014 wait for confirmation."
+        },
+        {
+          "min": 30,
+          "max": 44.99,
+          "signal": "SELL",
+          "action": "Trim or exit on bounce",
+          "notes": "Setup deteriorating; protect P&L."
+        },
+        {
+          "min": 0,
+          "max": 29.99,
+          "signal": "STRONG_SELL",
+          "action": "Full exit; consider intraday short if mandate allows",
+          "notes": "Multi-pillar breakdown."
+        }
+      ],
+      "skip_rule_categories": [
+        "fundamentals",
+        "balance_sheet",
+        "valuation",
+        "macro"
+      ],
+      "_rationale": "Intraday holds < 1 session \u2014 quarterly EPS, P/E, GDP, FII flows have no causal link to a 5-minute move. Sector RS and price/volume spike (SENT-003/004) DO matter and are kept in the active sentiment pillar."
+    },
+    "short_term": {
+      "description": "Daily run at 10:00 IST (Mon-Fri) for 1-10 day positional trades. Adds macro back in but still leaves out fundamentals/valuation \u2014 short-term trades are technical setups, not value buys.",
+      "active_pillars": [
+        "technicals",
+        "sentiment",
+        "macro",
+        "risk"
+      ],
+      "skip_screener_fetch": true,
+      "polling_interval_seconds": 3600,
+      "schedule": {
+        "type": "daily_at",
+        "time": "10:00",
+        "timezone": "Asia/Kolkata",
+        "weekdays": "Mon-Fri",
+        "_consumer": "apps.api.scheduler.DailyScheduler"
+      },
+      "primary_chart_interval": "1day",
+      "lookback_candles": 90,
+      "pillar_weights": {
+        "technicals": 0.4,
+        "sentiment": 0.2,
+        "macro": 0.15,
+        "risk": 0.25,
+        "fundamentals": 0.0
+      },
+      "category_weights": {
+        "trend": 0.25,
+        "momentum": 0.15,
+        "sentiment": 0.2,
+        "risk": 0.25,
+        "macro": 0.15,
+        "fundamentals": 0.0,
+        "balance_sheet": 0.0,
+        "valuation": 0.0
+      },
+      "thresholds": [
+        {
+          "min": 75,
+          "max": 100,
+          "signal": "STRONG_BUY",
+          "action": "Initiate swing long; 5% stop, 10% target",
+          "notes": "Trend + macro tailwind + risk-on regime."
+        },
+        {
+          "min": 60,
+          "max": 74.99,
+          "signal": "BUY",
+          "action": "Scale into position over 2 sessions",
+          "notes": "Setup is constructive; manage size."
+        },
+        {
+          "min": 40,
+          "max": 59.99,
+          "signal": "HOLD",
+          "action": "Hold existing; no new swing entries",
+          "notes": "Mixed signals; sit out the chop."
+        },
+        {
+          "min": 25,
+          "max": 39.99,
+          "signal": "SELL",
+          "action": "Exit swing positions",
+          "notes": "Setup invalidated."
+        },
+        {
+          "min": 0,
+          "max": 24.99,
+          "signal": "STRONG_SELL",
+          "action": "Full exit; lock losses",
+          "notes": "Trend reversal confirmed."
+        }
+      ],
+      "skip_rule_categories": [
+        "fundamentals",
+        "balance_sheet",
+        "valuation"
+      ],
+      "_rationale": "Short-term trades exit before the next earnings print \u2014 fundamental rerating risk dominates if you hold through. Macro + sector rotation (MACRO-004) is the actual edge for IN short-term books."
+    },
+    "long_term": {
+      "description": "Long-term holding (months to years). The original universal model \u2014 every pillar contributes. Run once per session at 10:00 IST (Mon-Fri); the same schedule that drives short_term so the dashboard refreshes both buckets in lockstep.",
+      "active_pillars": [
+        "fundamentals",
+        "technicals",
+        "sentiment",
+        "valuation",
+        "macro",
+        "risk"
+      ],
+      "skip_screener_fetch": false,
+      "polling_interval_seconds": 86400,
+      "schedule": {
+        "type": "daily_at",
+        "time": "10:00",
+        "timezone": "Asia/Kolkata",
+        "weekdays": "Mon-Fri",
+        "_consumer": "apps.api.scheduler.DailyScheduler"
+      },
+      "primary_chart_interval": "1week",
+      "lookback_candles": 104,
+      "pillar_weights": {
+        "fundamentals": 0.4,
+        "technicals": 0.15,
+        "sentiment": 0.1,
+        "valuation": 0.0,
+        "macro": 0.2,
+        "risk": 0.15
+      },
+      "category_weights": {
+        "fundamentals": 0.125,
+        "balance_sheet": 0.125,
+        "trend": 0.125,
+        "momentum": 0.075,
+        "sentiment": 0.15,
+        "valuation": 0.18,
+        "macro": 0.1,
+        "risk": 0.12
+      },
+      "thresholds": [
+        {
+          "min": 80,
+          "max": 100,
+          "signal": "STRONG_BUY",
+          "action": "Full position; consider leverage if risk-tolerant",
+          "notes": "All pillars aligned. Rare confluence signal."
+        },
+        {
+          "min": 65,
+          "max": 79.99,
+          "signal": "BUY",
+          "action": "Initiate position; scale in on pullbacks",
+          "notes": "Most factors positive. Normal entry point."
+        },
+        {
+          "min": 45,
+          "max": 64.99,
+          "signal": "HOLD",
+          "action": "Hold existing; no new entry; tight stop-loss",
+          "notes": "Mixed signals. Wait for confirmation."
+        },
+        {
+          "min": 25,
+          "max": 44.99,
+          "signal": "SELL",
+          "action": "Trim position; exit on bounces",
+          "notes": "Majority of signals deteriorating."
+        },
+        {
+          "min": 0,
+          "max": 24.99,
+          "signal": "STRONG_SELL",
+          "action": "Full exit; consider protective puts",
+          "notes": "Systemic breakdown across pillars."
+        }
+      ],
+      "skip_rule_categories": [],
+      "_rationale": "Holding period > 1 quarter \u2014 every pillar matters: earnings quality, balance sheet, valuation discipline, and macro regime determine total return. Same composite as v1.0.1."
+    }
+  },
+  "auto_mode_logic": {
+    "description": "Default mode chosen automatically when caller does not specify one. IST-aware so the same orchestrator can be reused in US markets later by adding a 'US' market block.",
+    "default_mode_when_no_market_open": "long_term",
+    "markets": {
+      "IN": {
+        "timezone": "Asia/Kolkata",
+        "trading_hours": {
+          "open": "09:15",
+          "close": "15:30"
+        },
+        "rules": [
+          {
+            "if_now_between": [
+              "09:15",
+              "15:30"
+            ],
+            "if_weekday": "Mon-Fri",
+            "use_mode": "intraday"
+          },
+          {
+            "if_now_between": [
+              "15:31",
+              "23:59"
+            ],
+            "if_weekday": "Mon-Fri",
+            "use_mode": "short_term"
+          },
+          {
+            "if_now_between": [
+              "00:00",
+              "09:14"
+            ],
+            "if_weekday": "Mon-Fri",
+            "use_mode": "short_term"
+          },
+          {
+            "if_weekday": "Sat-Sun",
+            "use_mode": "long_term"
+          }
+        ],
+        "user_override": "Caller may force any mode via API param ?mode=intraday|short_term|long_term \u2014 auto logic is a default, never a hard rule."
+      },
+      "US": {
+        "_note": "Reserved for future US-market support. When enabled, set timezone='America/New_York', trading_hours 09:30-16:00 ET, and reuse the same intraday/short_term/long_term modes since pillar mechanics are market-agnostic."
+      }
+    }
+  },
+  "confidence_normalization": {
+    "description": "How the engine normalises composite_score so inactive pillars never depress confidence.",
+    "implementation": "RuleEvaluator._composite_score iterates rules, multiplies score by (mode.category_weights[rule.category] * rule.category_weight * rule.confidence_weight), and divides by the sum of those weights. Rules in inactive pillars (weight == 0) drop out of BOTH numerator and denominator \u2014 the 0..100 range is preserved across modes.",
+    "formula": "composite = sum(rule.score * w for evaluated rules with w > 0) / sum(w for evaluated rules with w > 0)",
+    "skipped_rules_handling": "Skipped rules (missing data) contribute nothing to either sum. Their absence is reported via data_coverage_pct, not via score depression.",
+    "low_coverage_warning_threshold_pct": 60,
+    "_invariant": "An intraday STRONG_BUY (composite 78/100) is directly comparable to an investing STRONG_BUY (composite 78/100) \u2014 both are normalised against their mode's active pillar set."
+  },
+  "rules": [
+    {
+      "id": "FUND-001",
+      "category": "fundamentals",
+      "subcategory": "earnings_profitability",
+      "name": "EPS Growth (YoY & QoQ)",
+      "description": "Earnings per share growth measures profitability expansion.",
+      "confidence_weight": 0.85,
+      "category_weight": 0.25,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "eps_yoy_pct",
+        "eps_qoq_pct",
+        "eps_misses_consecutive"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "4_quarters",
+      "conditions": {
+        "strong_buy": "eps_yoy_pct >= 20 AND eps_qoq_pct > 0",
+        "buy": "eps_yoy_pct >= 10 AND eps_qoq_pct >= 0",
+        "neutral": "eps_yoy_pct >= 0 AND eps_yoy_pct < 10",
+        "sell": "eps_misses_consecutive >= 2 OR eps_yoy_pct < -10",
+        "strong_sell": "eps_misses_consecutive >= 3 OR eps_yoy_pct < -25"
+      },
+      "rationale": "Earnings per share growing >10% YoY = strong BUY signal. Consecutive EPS misses for 2+ quarters = SELL signal. Look for acceleration in growth rate."
+    },
+    {
+      "id": "FUND-002",
+      "category": "fundamentals",
+      "subcategory": "earnings_profitability",
+      "name": "Revenue Growth Rate",
+      "description": "Top-line growth signals demand health.",
+      "confidence_weight": 0.8,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "revenue_yoy_pct",
+        "revenue_decline_quarters_consecutive"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "4_quarters",
+      "conditions": {
+        "strong_buy": "revenue_yoy_pct >= 15",
+        "buy": "revenue_yoy_pct >= 8",
+        "neutral": "revenue_yoy_pct >= 0 AND revenue_yoy_pct < 8",
+        "sell": "revenue_decline_quarters_consecutive >= 2 OR revenue_yoy_pct < -5",
+        "strong_sell": "revenue_decline_quarters_consecutive >= 3 OR revenue_yoy_pct < -15"
+      },
+      "rationale": "Consistent revenue growth >8% signals healthy demand. Flat or declining revenue for 2 quarters raises concern."
+    },
+    {
+      "id": "FUND-003",
+      "category": "fundamentals",
+      "subcategory": "earnings_profitability",
+      "name": "Net Profit Margin",
+      "description": "Operational efficiency relative to industry.",
+      "confidence_weight": 0.75,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "net_margin_current",
+        "net_margin_2q_ago",
+        "industry_avg_margin"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "2_quarters",
+      "conditions": {
+        "strong_buy": "(net_margin_current - net_margin_2q_ago) >= 2 AND net_margin_current > industry_avg_margin",
+        "buy": "(net_margin_current - net_margin_2q_ago) > 0",
+        "neutral": "abs(net_margin_current - net_margin_2q_ago) <= 1",
+        "sell": "(net_margin_2q_ago - net_margin_current) >= 3",
+        "strong_sell": "(net_margin_2q_ago - net_margin_current) >= 5"
+      },
+      "rationale": "Expanding margins = operational efficiency. Margin compression >3pp over 2 quarters = red flag."
+    },
+    {
+      "id": "FUND-004",
+      "category": "fundamentals",
+      "subcategory": "earnings_profitability",
+      "name": "Return on Equity (ROE) & ROA",
+      "description": "Capital efficiency vs sector peers.",
+      "confidence_weight": 0.7,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "roe_pct",
+        "roa_pct",
+        "debt_to_equity_change_yoy"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "4_quarters",
+      "conditions": {
+        "strong_buy": "roe_pct >= 20 AND debt_to_equity_change_yoy <= 0",
+        "buy": "roe_pct >= 15",
+        "neutral": "roe_pct >= 10 AND roe_pct < 15",
+        "sell": "roe_pct < 10 AND roe_pct >= 5",
+        "strong_sell": "roe_pct < 5 OR roa_pct < 1"
+      },
+      "rationale": "ROE >15% with consistent trend signals strong capital efficiency. ROE rising without leverage increase = quality signal."
+    },
+    {
+      "id": "FUND-005",
+      "category": "fundamentals",
+      "subcategory": "earnings_profitability",
+      "name": "Free Cash Flow (FCF)",
+      "description": "Cash generation after capex - the gold standard.",
+      "confidence_weight": 0.9,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "fcf_yield_pct",
+        "fcf_negative_quarters_consecutive",
+        "company_age_years"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "4_quarters",
+      "conditions": {
+        "strong_buy": "fcf_yield_pct >= 7",
+        "buy": "fcf_yield_pct >= 5",
+        "neutral": "fcf_yield_pct >= 2 AND fcf_yield_pct < 5",
+        "sell": "fcf_yield_pct < 0 AND fcf_negative_quarters_consecutive >= 2",
+        "strong_sell": "fcf_negative_quarters_consecutive >= 3 AND company_age_years > 10"
+      },
+      "rationale": "Positive and growing FCF is the gold standard. FCF yield >5% = undervalued. Negative FCF for 3+ quarters in a mature company = strong SELL."
+    },
+    {
+      "id": "BS-001",
+      "category": "balance_sheet",
+      "subcategory": "leverage",
+      "name": "Debt-to-Equity (D/E) Ratio",
+      "description": "Financial leverage; sector-adjusted.",
+      "confidence_weight": 0.78,
+      "category_weight": 0.4,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "debt_to_equity",
+        "debt_to_equity_yoy_change",
+        "sector"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "sector_adjustments": {
+        "utilities": {
+          "buy_max": 1.5,
+          "sell_min": 4.0
+        },
+        "real_estate": {
+          "buy_max": 1.5,
+          "sell_min": 4.0
+        },
+        "financials": {
+          "buy_max": 8.0,
+          "sell_min": 15.0,
+          "_note": "Banks use different metric; deprioritize this rule"
+        },
+        "default": {
+          "buy_max": 1.0,
+          "sell_min": 3.0
+        }
+      },
+      "conditions": {
+        "strong_buy": "debt_to_equity < (sector.buy_max * 0.5) AND debt_to_equity_yoy_change <= 0",
+        "buy": "debt_to_equity < sector.buy_max",
+        "neutral": "debt_to_equity >= sector.buy_max AND debt_to_equity < sector.sell_min",
+        "sell": "debt_to_equity >= sector.sell_min",
+        "strong_sell": "debt_to_equity >= (sector.sell_min * 1.5)"
+      },
+      "rationale": "D/E <1.0 for most sectors = healthy. D/E >3.0 = risky. Trend matters: rising D/E = warning."
+    },
+    {
+      "id": "BS-002",
+      "category": "balance_sheet",
+      "subcategory": "liquidity",
+      "name": "Current Ratio & Quick Ratio",
+      "description": "Short-term liquidity strength.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.3,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "current_ratio",
+        "quick_ratio"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "current_ratio >= 2.0 AND quick_ratio >= 1.5",
+        "buy": "current_ratio >= 1.5 AND quick_ratio >= 1.0",
+        "neutral": "current_ratio >= 1.0 AND current_ratio < 1.5",
+        "sell": "current_ratio < 1.0 OR quick_ratio < 0.7",
+        "strong_sell": "current_ratio < 0.7"
+      },
+      "rationale": "Current ratio >1.5 indicates sufficient short-term liquidity. Below 1.0 = potential liquidity crisis warning."
+    },
+    {
+      "id": "BS-003",
+      "category": "balance_sheet",
+      "subcategory": "solvency",
+      "name": "Interest Coverage Ratio",
+      "description": "EBIT / Interest Expense - default risk indicator.",
+      "confidence_weight": 0.72,
+      "category_weight": 0.3,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "interest_coverage_ratio"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "interest_coverage_ratio >= 6",
+        "buy": "interest_coverage_ratio >= 3",
+        "neutral": "interest_coverage_ratio >= 1.5 AND interest_coverage_ratio < 3",
+        "sell": "interest_coverage_ratio < 1.5",
+        "strong_sell": "interest_coverage_ratio < 1.0"
+      },
+      "rationale": "EBIT / Interest Expense >3x = comfortable. Below 1.5x means earnings barely cover interest \u2014 high default risk."
+    },
+    {
+      "id": "TREND-001",
+      "category": "trend",
+      "subcategory": "moving_averages",
+      "name": "50-Day vs 200-Day MA (Golden/Death Cross)",
+      "description": "Trend confirmation via MA crossover.",
+      "confidence_weight": 0.82,
+      "category_weight": 0.4,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "ma_50",
+        "ma_200",
+        "ma_50_prev_5d",
+        "ma_200_prev_5d"
+      ],
+      "data_sources": {
+        "IN": "dhan.ohlc",
+        "US": "yahoo.ohlc"
+      },
+      "lookback_period": "200_days",
+      "conditions": {
+        "strong_buy": "ma_50 > ma_200 AND ma_50_prev_5d <= ma_200_prev_5d",
+        "buy": "ma_50 > ma_200 AND (ma_50 / ma_200) > 1.02",
+        "neutral": "abs(ma_50 - ma_200) / ma_200 <= 0.02",
+        "sell": "ma_50 < ma_200 AND (ma_200 / ma_50) > 1.02",
+        "strong_sell": "ma_50 < ma_200 AND ma_50_prev_5d >= ma_200_prev_5d"
+      },
+      "rationale": "Golden Cross (50MA crosses above 200MA) = bullish trend confirmation BUY. Death Cross = bearish trend SELL signal."
+    },
+    {
+      "id": "TREND-002",
+      "category": "trend",
+      "subcategory": "price_structure",
+      "name": "Price vs 52-Week Range",
+      "description": "Position within annual price range.",
+      "confidence_weight": 0.6,
+      "category_weight": 0.3,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "current_price",
+        "high_52w",
+        "low_52w",
+        "fundamental_score"
+      ],
+      "data_sources": {
+        "IN": "dhan.ohlc",
+        "US": "yahoo.ohlc"
+      },
+      "lookback_period": "52_weeks",
+      "conditions": {
+        "strong_buy": "(current_price - low_52w) / (high_52w - low_52w) >= 0.85 AND fundamental_score >= 65",
+        "buy": "(current_price - low_52w) / (high_52w - low_52w) >= 0.70",
+        "neutral": "(current_price - low_52w) / (high_52w - low_52w) >= 0.30 AND (current_price - low_52w) / (high_52w - low_52w) < 0.70",
+        "sell": "(current_price - low_52w) / (high_52w - low_52w) < 0.30 AND fundamental_score < 50",
+        "strong_sell": "(current_price - low_52w) / (high_52w - low_52w) < 0.10"
+      },
+      "rationale": "Trading near 52-week high with strong fundamentals = momentum BUY. Near 52-week low with no fundamental reason = possible value trap or SELL."
+    },
+    {
+      "id": "TREND-003",
+      "category": "trend",
+      "subcategory": "ema_alignment",
+      "name": "EMA Ribbon (8/13/21/34/55)",
+      "description": "Multi-timeframe EMA alignment for trend strength.",
+      "confidence_weight": 0.68,
+      "category_weight": 0.3,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "ema_8",
+        "ema_13",
+        "ema_21",
+        "ema_34",
+        "ema_55",
+        "ribbon_compression_pct"
+      ],
+      "data_sources": {
+        "IN": "dhan.ohlc",
+        "US": "yahoo.ohlc"
+      },
+      "lookback_period": "55_days",
+      "conditions": {
+        "strong_buy": "ema_8 > ema_13 AND ema_13 > ema_21 AND ema_21 > ema_34 AND ema_34 > ema_55 AND ribbon_compression_pct > 5",
+        "buy": "ema_8 > ema_13 AND ema_13 > ema_21 AND ema_21 > ema_34",
+        "neutral": "ribbon_compression_pct < 2",
+        "sell": "ema_8 < ema_13 AND ema_13 < ema_21 AND ema_21 < ema_34",
+        "strong_sell": "ema_8 < ema_13 AND ema_13 < ema_21 AND ema_21 < ema_34 AND ema_34 < ema_55"
+      },
+      "rationale": "All EMAs aligned and fanning upward = strong uptrend BUY. Ribbon compression followed by downward cross = impending reversal SELL signal."
+    },
+    {
+      "id": "MOM-001",
+      "category": "momentum",
+      "subcategory": "oscillator",
+      "name": "RSI (Relative Strength Index, 14-period)",
+      "description": "Overbought/oversold and divergence detection.",
+      "confidence_weight": 0.75,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "rsi_14",
+        "rsi_divergence_bearish",
+        "rsi_divergence_bullish"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "14_days",
+      "conditions": {
+        "strong_buy": "rsi_14 < 25 OR rsi_divergence_bullish == true",
+        "buy": "rsi_14 < 35",
+        "neutral": "rsi_14 >= 35 AND rsi_14 <= 65",
+        "sell": "rsi_14 > 70 OR rsi_divergence_bearish == true",
+        "strong_sell": "rsi_14 > 80 AND rsi_divergence_bearish == true"
+      },
+      "rationale": "RSI <30 = oversold, potential BUY reversal. RSI >70 = overbought, potential SELL/correction. Divergence = strong SELL warning."
+    },
+    {
+      "id": "MOM-002",
+      "category": "momentum",
+      "subcategory": "oscillator",
+      "name": "MACD (12, 26, 9 - Signal Line Crossover)",
+      "description": "Trend-following momentum oscillator.",
+      "confidence_weight": 0.77,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "macd_line",
+        "macd_signal",
+        "macd_histogram",
+        "macd_histogram_prev"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "26_days",
+      "conditions": {
+        "strong_buy": "macd_line > macd_signal AND macd_histogram > 0 AND macd_histogram > macd_histogram_prev",
+        "buy": "macd_line > macd_signal",
+        "neutral": "abs(macd_line - macd_signal) / abs(macd_signal) < 0.05",
+        "sell": "macd_line < macd_signal",
+        "strong_sell": "macd_line < macd_signal AND macd_histogram < 0 AND macd_histogram < macd_histogram_prev"
+      },
+      "rationale": "MACD line crossing above signal line = BUY. Crossing below = SELL. Histogram rising from zero = bullish momentum building."
+    },
+    {
+      "id": "MOM-003",
+      "category": "momentum",
+      "subcategory": "oscillator",
+      "name": "Stochastic Oscillator (14, 3, 3)",
+      "description": "Range-bound momentum indicator.",
+      "confidence_weight": 0.62,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "stoch_k",
+        "stoch_d",
+        "stoch_k_prev",
+        "stoch_d_prev"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "14_days",
+      "conditions": {
+        "strong_buy": "stoch_k < 20 AND stoch_d < 20 AND stoch_k > stoch_d AND stoch_k_prev <= stoch_d_prev",
+        "buy": "stoch_k < 30 AND stoch_k > stoch_d",
+        "neutral": "stoch_k >= 30 AND stoch_k <= 70",
+        "sell": "stoch_k > 70 AND stoch_k < stoch_d",
+        "strong_sell": "stoch_k > 80 AND stoch_d > 80 AND stoch_k < stoch_d AND stoch_k_prev >= stoch_d_prev"
+      },
+      "rationale": "%K crossing %D from below in <20 zone = BUY. Crossing from above in >80 zone = SELL."
+    },
+    {
+      "id": "MOM-004",
+      "category": "momentum",
+      "subcategory": "volume",
+      "name": "Volume Confirmation",
+      "description": "Volume validates price moves.",
+      "confidence_weight": 0.88,
+      "category_weight": 0.25,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "volume_today",
+        "volume_avg_20d",
+        "price_change_today_pct",
+        "is_breakout"
+      ],
+      "data_sources": {
+        "IN": "dhan.ohlc",
+        "US": "yahoo.ohlc"
+      },
+      "lookback_period": "20_days",
+      "conditions": {
+        "strong_buy": "is_breakout == true AND volume_today >= (volume_avg_20d * 2.0) AND price_change_today_pct > 0",
+        "buy": "volume_today >= (volume_avg_20d * 1.5) AND price_change_today_pct > 0",
+        "neutral": "volume_today >= (volume_avg_20d * 0.7) AND volume_today <= (volume_avg_20d * 1.5)",
+        "sell": "volume_today >= (volume_avg_20d * 1.5) AND price_change_today_pct < -1",
+        "strong_sell": "volume_today >= (volume_avg_20d * 2.0) AND price_change_today_pct < -2"
+      },
+      "rationale": "Price breakout + above-average volume = HIGH confidence BUY. Heavy sell volume on down days = distribution SELL signal."
+    },
+    {
+      "id": "MOM-005",
+      "category": "momentum",
+      "subcategory": "volatility_band",
+      "name": "Bollinger Bands (20, 2)",
+      "description": "Volatility-adjusted price extremes.",
+      "confidence_weight": 0.7,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "bb_upper",
+        "bb_middle",
+        "bb_lower",
+        "current_price",
+        "rsi_14",
+        "bb_squeeze"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "20_days",
+      "conditions": {
+        "strong_buy": "current_price <= bb_lower AND rsi_14 < 30",
+        "buy": "current_price <= bb_lower * 1.02",
+        "neutral": "current_price > bb_lower * 1.02 AND current_price < bb_upper * 0.98",
+        "sell": "current_price >= bb_upper * 0.98",
+        "strong_sell": "current_price >= bb_upper AND rsi_14 > 70"
+      },
+      "rationale": "Price touching lower band + RSI <30 = high-probability BUY setup. Price at upper band + negative divergence = SELL."
+    },
+    {
+      "id": "MOM-006",
+      "category": "momentum",
+      "subcategory": "price_levels",
+      "name": "Support & Resistance Levels",
+      "description": "Key price zones from historical clusters and Fibonacci.",
+      "confidence_weight": 0.8,
+      "category_weight": 0.25,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "nearest_support",
+        "nearest_resistance",
+        "current_price",
+        "volume_today",
+        "volume_avg_20d",
+        "broke_support_today",
+        "bounced_off_support_today"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "60_days",
+      "conditions": {
+        "strong_buy": "bounced_off_support_today == true AND volume_today >= (volume_avg_20d * 1.5)",
+        "buy": "abs(current_price - nearest_support) / current_price < 0.02",
+        "neutral": "current_price > nearest_support * 1.05 AND current_price < nearest_resistance * 0.95",
+        "sell": "abs(current_price - nearest_resistance) / current_price < 0.02",
+        "strong_sell": "broke_support_today == true AND volume_today >= (volume_avg_20d * 1.5)"
+      },
+      "rationale": "Bounce off major support with volume = BUY. Breakdown below key support level with volume = confirmed SELL."
+    },
+    {
+      "id": "SENT-001",
+      "category": "sentiment",
+      "subcategory": "news_nlp",
+      "name": "News Sentiment (NLP Score, 14-day)",
+      "description": "14-day rolling average tone of financial news articles from GDELT, normalized to [-1, +1]. Captures media narrative shift before price action.",
+      "confidence_weight": 0.6,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "news_sentiment_14d_avg",
+        "negative_news_volume_spike"
+      ],
+      "data_sources": {
+        "IN": "gdelt.news + custom_nlp",
+        "US": "gdelt.news + custom_nlp"
+      },
+      "lookback_period": "14_days",
+      "conditions": {
+        "strong_buy": "news_sentiment_14d_avg >= 0.5",
+        "buy": "news_sentiment_14d_avg >= 0.25",
+        "neutral": "news_sentiment_14d_avg > -0.25 AND news_sentiment_14d_avg < 0.25",
+        "sell": "news_sentiment_14d_avg <= -0.25 OR negative_news_volume_spike == true",
+        "strong_sell": "news_sentiment_14d_avg <= -0.5 AND negative_news_volume_spike == true"
+      },
+      "rationale": "Strongly positive news tone (>=0.5) signals broad media bullishness \u2014 BUY. A spike in negative-volume articles is a leading SELL indicator. News sentiment leads institutional repositioning by 1-3 days."
+    },
+    {
+      "id": "SENT-002",
+      "category": "sentiment",
+      "subcategory": "fii_dii_flow",
+      "name": "FII/DII Net Flow Sentiment",
+      "description": "Net daily FII (Foreign Institutional Investor) and DII (Domestic Institutional Investor) cash flows into Indian equities as a smart-money sentiment gauge. FII flow dominates; DII flow acts as counterbalancing signal.",
+      "confidence_weight": 0.78,
+      "category_weight": 0.25,
+      "markets": [
+        "IN"
+      ],
+      "_note_market_scope": "FII/DII flow data is specific to Indian markets (NSE reporting). Rule disabled for US.",
+      "data_required": [
+        "fii_net_crore",
+        "dii_net_crore"
+      ],
+      "data_sources": {
+        "IN": "nse_fii_flows"
+      },
+      "lookback_period": "1_day",
+      "conditions": {
+        "strong_buy": "fii_net_crore >= 3000 AND dii_net_crore >= 0",
+        "buy": "fii_net_crore >= 1000 OR (fii_net_crore >= 0 AND dii_net_crore >= 1000)",
+        "neutral": "fii_net_crore > -1000 AND fii_net_crore < 1000",
+        "sell": "fii_net_crore <= -1000",
+        "strong_sell": "fii_net_crore <= -3000 AND dii_net_crore <= 0"
+      },
+      "rationale": "FII net buy >=\u20b93000 Cr with DII support = strong institutional conviction BUY. Heavy FII outflow <=-\u20b93000 Cr with DII also selling = panic-exit STRONG SELL. DII buying alone when FII sells = mild support, not a full BUY."
+    },
+    {
+      "id": "SENT-003",
+      "category": "sentiment",
+      "subcategory": "sector_relative_strength",
+      "name": "Sector Relative Strength (3-Month)",
+      "description": "Stock's 3-month return relative to its sector index. Measures whether the market is rotating into or out of this stock compared to sector peers \u2014 a leading sentiment indicator.",
+      "confidence_weight": 0.72,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "stock_return_3m_pct",
+        "sector_return_3m_pct"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "3_months",
+      "conditions": {
+        "strong_buy": "stock_return_3m_pct >= (sector_return_3m_pct + 10)",
+        "buy": "stock_return_3m_pct >= (sector_return_3m_pct + 3)",
+        "neutral": "stock_return_3m_pct >= (sector_return_3m_pct - 3) AND stock_return_3m_pct <= (sector_return_3m_pct + 3)",
+        "sell": "stock_return_3m_pct <= (sector_return_3m_pct - 5)",
+        "strong_sell": "stock_return_3m_pct <= (sector_return_3m_pct - 10)"
+      },
+      "rationale": "Outperforming the sector by 10%+ over 3 months signals institutional accumulation and positive relative sentiment. Underperforming the sector by 10%+ = distribution and negative sentiment regardless of absolute returns."
+    },
+    {
+      "id": "SENT-004",
+      "category": "sentiment",
+      "subcategory": "price_volume_spike",
+      "name": "Intraday Price & Volume Spike",
+      "description": "Detects unusual single-day price moves accompanied by volume spikes \u2014 a real-time sentiment shock indicator. Captures both positive catalysts (earnings beats, upgrades) and negative shocks (fraud alerts, downgrades).",
+      "confidence_weight": 0.82,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "price_change_today_pct",
+        "volume_today",
+        "volume_avg_20d"
+      ],
+      "data_sources": {
+        "IN": "dhan.ohlc",
+        "US": "yahoo.ohlc"
+      },
+      "lookback_period": "20_days",
+      "conditions": {
+        "strong_buy": "price_change_today_pct >= 5 AND volume_today >= (volume_avg_20d * 2.5)",
+        "buy": "price_change_today_pct >= 3 AND volume_today >= (volume_avg_20d * 1.5)",
+        "neutral": "price_change_today_pct > -3 AND price_change_today_pct < 3",
+        "sell": "price_change_today_pct <= -3 AND volume_today >= (volume_avg_20d * 1.5)",
+        "strong_sell": "price_change_today_pct <= -5 AND volume_today >= (volume_avg_20d * 2.5)"
+      },
+      "rationale": "A 5%+ up move on 2.5x average volume = clear positive sentiment shock (earnings beat, major upgrade). A 5%+ down move on equal volume = negative shock (guidance cut, scandal). Volume must confirm \u2014 price moves on thin volume are noise."
+    },
+    {
+      "id": "SENT-005",
+      "category": "sentiment",
+      "subcategory": "vix_sentiment",
+      "name": "India VIX Sentiment (Contrarian)",
+      "description": "India VIX (NSE fear gauge) used as a contrarian sentiment signal. Extreme fear (high VIX) can signal capitulation BUY opportunities; extreme complacency (low VIX with rising VIX trend) signals hidden risk.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.15,
+      "markets": [
+        "IN"
+      ],
+      "_note_market_scope": "India VIX (NSE) is specific to the Indian equity market. Rule disabled for US.",
+      "data_required": [
+        "vix_level",
+        "vix_change_5d_pct"
+      ],
+      "data_sources": {
+        "IN": "nse_vix"
+      },
+      "lookback_period": "5_days",
+      "conditions": {
+        "strong_buy": "vix_level >= 30 AND vix_change_5d_pct <= -10",
+        "buy": "vix_level >= 25 AND vix_change_5d_pct < 0",
+        "neutral": "vix_level >= 15 AND vix_level < 25",
+        "sell": "vix_level < 15 AND vix_change_5d_pct >= 5",
+        "strong_sell": "vix_level >= 35 AND vix_change_5d_pct >= 20"
+      },
+      "rationale": "India VIX >=30 and falling = fear peaked + reverting = contrarian BUY. VIX <15 but spiking upward = complacency being unwound = SELL warning. VIX >=35 and spiking fast = panic cascade in progress = STRONG SELL (risk management exit, not contrarian buy)."
+    },
+    {
+      "id": "MACRO-001",
+      "category": "macro",
+      "subcategory": "monetary",
+      "name": "Interest Rate Environment",
+      "description": "Central bank policy regime affects sector preference.",
+      "confidence_weight": 0.78,
+      "category_weight": 0.25,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "policy_rate_trend",
+        "policy_rate_change_3m_bps",
+        "stock_sector"
+      ],
+      "data_sources": {
+        "IN": "fred.rbi_repo_rate",
+        "US": "fred.fed_funds_rate"
+      },
+      "lookback_period": "6_months",
+      "sector_directionality": {
+        "technology": {
+          "favorable": "cutting",
+          "unfavorable": "hiking"
+        },
+        "growth": {
+          "favorable": "cutting",
+          "unfavorable": "hiking"
+        },
+        "real_estate": {
+          "favorable": "cutting",
+          "unfavorable": "hiking"
+        },
+        "financials": {
+          "favorable": "hiking",
+          "unfavorable": "cutting"
+        },
+        "utilities": {
+          "favorable": "cutting",
+          "unfavorable": "hiking"
+        }
+      },
+      "conditions": {
+        "strong_buy": "policy_rate_change_3m_bps <= -50 AND stock_sector in favorable_sectors_for_cuts",
+        "buy": "policy_rate_trend == 'cutting' AND stock_sector in favorable_sectors_for_cuts",
+        "neutral": "abs(policy_rate_change_3m_bps) < 25",
+        "sell": "policy_rate_trend == 'hiking' AND stock_sector in unfavorable_sectors_for_hikes",
+        "strong_sell": "policy_rate_change_3m_bps >= 75 AND stock_sector in unfavorable_sectors_for_hikes"
+      },
+      "rationale": "Falling rates = BUY for growth/tech/REIT. Rising rates = BUY for financials, SELL for high-duration bonds and unprofitable growth stocks."
+    },
+    {
+      "id": "MACRO-002",
+      "category": "macro",
+      "subcategory": "growth",
+      "name": "GDP Growth & Economic Cycle",
+      "description": "Macro regime determines cyclical vs defensive preference.",
+      "confidence_weight": 0.7,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "gdp_yoy_pct",
+        "gdp_yoy_pct_prev_quarter",
+        "stock_sector_classification"
+      ],
+      "data_sources": {
+        "IN": "fred.india_gdp",
+        "US": "fred.us_gdp"
+      },
+      "lookback_period": "2_quarters",
+      "conditions": {
+        "strong_buy": "gdp_yoy_pct >= 3.5 AND stock_sector_classification == 'cyclical'",
+        "buy": "gdp_yoy_pct >= 2 AND stock_sector_classification == 'cyclical'",
+        "neutral": "gdp_yoy_pct >= 1 AND gdp_yoy_pct < 2",
+        "sell": "gdp_yoy_pct < 1 AND stock_sector_classification == 'cyclical'",
+        "strong_sell": "gdp_yoy_pct < 0 AND stock_sector_classification == 'cyclical'"
+      },
+      "rationale": "Expansion phase: BUY cyclicals, industrials, tech. Contraction: BUY defensives. Recession signals = broad SELL alert on cyclicals."
+    },
+    {
+      "id": "MACRO-003",
+      "category": "macro",
+      "subcategory": "inflation",
+      "name": "Inflation Rate (CPI/PPI)",
+      "description": "Inflation regime affects sector preference and stagflation risk.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "cpi_yoy_pct",
+        "gdp_yoy_pct",
+        "stock_sector"
+      ],
+      "data_sources": {
+        "IN": "fred.india_cpi",
+        "US": "fred.us_cpi"
+      },
+      "lookback_period": "3_months",
+      "conditions": {
+        "strong_buy": "cpi_yoy_pct >= 4 AND stock_sector in ['energy', 'materials', 'commodities']",
+        "buy": "cpi_yoy_pct >= 2 AND cpi_yoy_pct <= 3.5",
+        "neutral": "cpi_yoy_pct >= 1.5 AND cpi_yoy_pct < 2",
+        "sell": "cpi_yoy_pct >= 5 AND gdp_yoy_pct < 1",
+        "strong_sell": "cpi_yoy_pct >= 6 AND gdp_yoy_pct < 0"
+      },
+      "rationale": "Moderate inflation (2-3%): neutral. High inflation: BUY commodities, energy, materials. Stagflation = broad SELL signal."
+    },
+    {
+      "id": "MACRO-004",
+      "category": "macro",
+      "subcategory": "relative_strength",
+      "name": "Sector Rotation & Relative Strength",
+      "description": "Stock vs sector vs market 3-month performance.",
+      "confidence_weight": 0.72,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "stock_return_3m_pct",
+        "sector_return_3m_pct",
+        "market_return_3m_pct",
+        "rs_line_at_3m_high"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "computed.from_yahoo_ohlc"
+      },
+      "lookback_period": "3_months",
+      "conditions": {
+        "strong_buy": "rs_line_at_3m_high == true AND stock_return_3m_pct > sector_return_3m_pct AND stock_return_3m_pct > market_return_3m_pct",
+        "buy": "stock_return_3m_pct > sector_return_3m_pct AND stock_return_3m_pct > market_return_3m_pct",
+        "neutral": "abs(stock_return_3m_pct - market_return_3m_pct) < 2",
+        "sell": "stock_return_3m_pct < sector_return_3m_pct AND stock_return_3m_pct < market_return_3m_pct",
+        "strong_sell": "(stock_return_3m_pct - market_return_3m_pct) < -10"
+      },
+      "rationale": "Stock outperforming its sector and the broad market = BUY. Persistent sector underperformance over 3 months = SELL or avoid."
+    },
+    {
+      "id": "MACRO-005",
+      "category": "macro",
+      "subcategory": "currency_geo",
+      "name": "Currency & Geopolitical Risk",
+      "description": "FX impact on multinationals + geopolitical exposure.",
+      "confidence_weight": 0.58,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "dxy_change_3m_pct_US",
+        "inr_change_3m_pct_IN",
+        "foreign_revenue_pct",
+        "geopolitical_exposure_score"
+      ],
+      "data_sources": {
+        "IN": "fred.usd_inr + custom.geo",
+        "US": "fred.dxy + custom.geo"
+      },
+      "lookback_period": "3_months",
+      "conditions": {
+        "buy": "(market == 'IN' AND inr_change_3m_pct_IN < 0 AND foreign_revenue_pct >= 30) OR (market == 'US' AND dxy_change_3m_pct_US < -3)",
+        "neutral": "geopolitical_exposure_score < 0.3",
+        "sell": "(market == 'US' AND dxy_change_3m_pct_US > 5 AND foreign_revenue_pct >= 40) OR geopolitical_exposure_score >= 0.5",
+        "strong_sell": "geopolitical_exposure_score >= 0.7"
+      },
+      "rationale": "Strong USD hurts US multinational revenue (SELL risk). Geopolitical escalation in key market regions = SELL for exposed stocks."
+    },
+    {
+      "id": "MACRO-007",
+      "category": "macro",
+      "subcategory": "fii_flow",
+      "name": "FII Net Flow Signal",
+      "description": "Foreign Institutional Investor net cash flow into Indian equities (\u20b9 crore) as a macro liquidity signal.",
+      "confidence_weight": 0.72,
+      "category_weight": 0.2,
+      "markets": [
+        "IN"
+      ],
+      "data_required": [
+        "fii_net_crore"
+      ],
+      "data_source": "nse_fii_flows",
+      "data_sources": {
+        "IN": "nse_fii_flows"
+      },
+      "lookback_period": "1_day",
+      "conditions": {
+        "buy": "fii_net_crore > 2000",
+        "sell": "fii_net_crore < -2000"
+      },
+      "logic": [
+        {
+          "when": "fii_net_crore > 2000",
+          "score": 75,
+          "signal": "buy"
+        },
+        {
+          "when": "fii_net_crore > 0",
+          "score": 60,
+          "signal": "neutral_buy"
+        },
+        {
+          "when": "fii_net_crore < -2000",
+          "score": 30,
+          "signal": "sell"
+        },
+        {
+          "when": "else",
+          "score": 50,
+          "signal": "neutral"
+        }
+      ],
+      "rationale": "FII net buying >\u20b92000 cr = strong macro inflow BUY. Heavy FII outflow <-\u20b92000 cr = macro SELL warning. FIIs are the dominant marginal buyer in Indian large-caps."
+    },
+    {
+      "id": "MACRO-008",
+      "category": "macro",
+      "subcategory": "options_sentiment",
+      "name": "Put-Call Ratio Sentiment",
+      "description": "NSE option-chain Put-Call Ratio as a contrarian sentiment gauge.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.15,
+      "markets": [
+        "IN"
+      ],
+      "data_required": [
+        "pcr"
+      ],
+      "data_source": "nse_option_chain",
+      "data_sources": {
+        "IN": "nse_option_chain"
+      },
+      "lookback_period": "1_day",
+      "conditions": {
+        "buy": "pcr > 1.2",
+        "sell": "pcr < 0.8"
+      },
+      "logic": [
+        {
+          "when": "pcr > 1.2",
+          "score": 72,
+          "signal": "buy",
+          "note": "market hedged, room to rise"
+        },
+        {
+          "when": "pcr < 0.8",
+          "score": 35,
+          "signal": "sell",
+          "note": "overleveraged calls, risky"
+        },
+        {
+          "when": "else",
+          "score": 55,
+          "signal": "neutral"
+        }
+      ],
+      "rationale": "PCR >1.2 = excessive put-buying / hedged market = contrarian BUY. PCR <0.8 = call-side froth, overleveraged longs, vulnerable to unwind = SELL."
+    },
+    {
+      "id": "VAL-001",
+      "category": "valuation",
+      "subcategory": "earnings_multiple",
+      "name": "P/E Ratio (vs Sector & Historical)",
+      "description": "Price-to-earnings against sector average and own history.",
+      "confidence_weight": 0.8,
+      "category_weight": 0.3,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "pe_ratio",
+        "sector_pe_avg",
+        "pe_5y_avg",
+        "is_growth_stock",
+        "forward_pe",
+        "revenue_growing"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "pe_ratio < (sector_pe_avg * 0.7) AND forward_pe < pe_ratio AND revenue_growing == true",
+        "buy": "pe_ratio < sector_pe_avg AND pe_ratio < 15",
+        "neutral": "pe_ratio >= sector_pe_avg * 0.9 AND pe_ratio <= sector_pe_avg * 1.2",
+        "sell": "pe_ratio > sector_pe_avg * 1.5 OR (pe_ratio > 50 AND is_growth_stock == false)",
+        "strong_sell": "pe_ratio > sector_pe_avg * 2.0 AND is_growth_stock == false"
+      },
+      "rationale": "P/E <15 and below sector average = value BUY. P/E >50 for non-growth company = overvalued SELL."
+    },
+    {
+      "id": "VAL-002",
+      "category": "valuation",
+      "subcategory": "growth_adjusted",
+      "name": "PEG Ratio (Price/Earnings to Growth)",
+      "description": "P/E adjusted for earnings growth rate.",
+      "confidence_weight": 0.76,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "peg_ratio"
+      ],
+      "data_sources": {
+        "IN": "yahoo.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "peg_ratio > 0 AND peg_ratio <= 0.7",
+        "buy": "peg_ratio > 0 AND peg_ratio < 1.0",
+        "neutral": "peg_ratio >= 1.0 AND peg_ratio <= 1.5",
+        "sell": "peg_ratio > 1.5 AND peg_ratio <= 2.0",
+        "strong_sell": "peg_ratio > 2.0"
+      },
+      "rationale": "PEG <1.0 = undervalued relative to growth (BUY). PEG >2.0 = growth fully priced in (SELL)."
+    },
+    {
+      "id": "VAL-003",
+      "category": "valuation",
+      "subcategory": "enterprise_multiple",
+      "name": "EV/EBITDA",
+      "description": "Capital structure-neutral valuation.",
+      "confidence_weight": 0.7,
+      "category_weight": 0.2,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "ev_ebitda",
+        "industry_ev_ebitda_median",
+        "margin_improving"
+      ],
+      "data_sources": {
+        "IN": "yahoo.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "ev_ebitda < (industry_ev_ebitda_median * 0.7) AND margin_improving == true",
+        "buy": "ev_ebitda < 10 AND ev_ebitda < industry_ev_ebitda_median",
+        "neutral": "ev_ebitda >= industry_ev_ebitda_median * 0.9 AND ev_ebitda <= industry_ev_ebitda_median * 1.2",
+        "sell": "ev_ebitda > industry_ev_ebitda_median * 1.5",
+        "strong_sell": "ev_ebitda > industry_ev_ebitda_median * 2.0"
+      },
+      "rationale": "EV/EBITDA <10x for mature companies = attractive. Useful for capital-intensive and leveraged firms."
+    },
+    {
+      "id": "VAL-004",
+      "category": "valuation",
+      "subcategory": "book_multiple",
+      "name": "Price-to-Book (P/B) Ratio",
+      "description": "Market price vs accounting book value.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "pb_ratio",
+        "roe_pct",
+        "is_financial_sector"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "pb_ratio < 1.0 AND roe_pct >= 10 AND is_financial_sector == true",
+        "buy": "pb_ratio < 1.5 AND roe_pct >= 12",
+        "neutral": "pb_ratio >= 1.5 AND pb_ratio <= 5.0",
+        "sell": "pb_ratio > 10.0 AND roe_pct < 15",
+        "strong_sell": "pb_ratio > 15.0 AND roe_pct < 10"
+      },
+      "rationale": "P/B <1.0 may indicate deep value or distress. Best for banks and financials."
+    },
+    {
+      "id": "VAL-005",
+      "category": "valuation",
+      "subcategory": "income",
+      "name": "Dividend Yield & Payout Ratio",
+      "description": "Income sustainability and dividend safety.",
+      "confidence_weight": 0.74,
+      "category_weight": 0.15,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "dividend_yield_pct",
+        "payout_ratio_pct",
+        "earnings_declining",
+        "dividend_growth_5y_pct"
+      ],
+      "data_sources": {
+        "IN": "dhan.fundamentals",
+        "US": "yahoo.fundamentals"
+      },
+      "conditions": {
+        "strong_buy": "dividend_yield_pct >= 4 AND payout_ratio_pct < 60 AND dividend_growth_5y_pct > 0",
+        "buy": "dividend_yield_pct >= 3 AND payout_ratio_pct < 60",
+        "neutral": "dividend_yield_pct >= 1.5 AND payout_ratio_pct < 80",
+        "sell": "payout_ratio_pct >= 90 AND earnings_declining == true",
+        "strong_sell": "payout_ratio_pct >= 100 AND earnings_declining == true"
+      },
+      "rationale": "Dividend yield >3% with payout ratio <60% = sustainable income BUY. Payout ratio >90% with declining earnings = dividend cut risk SELL."
+    },
+    {
+      "id": "RISK-001",
+      "category": "risk",
+      "subcategory": "market_sensitivity",
+      "name": "Beta (Market Sensitivity)",
+      "description": "Stock volatility relative to market \u2014 regime-dependent. High beta amplifies both gains and losses; interpretation depends on whether the market is in a bull or bear regime.",
+      "confidence_weight": 0.65,
+      "category_weight": 0.5,
+      "markets": [
+        "IN",
+        "US"
+      ],
+      "data_required": [
+        "beta",
+        "market_regime"
+      ],
+      "data_sources": {
+        "IN": "computed.from_dhan_ohlc",
+        "US": "yahoo.fundamentals"
+      },
+      "lookback_period": "1_year",
+      "_market_regime_note": "market_regime is derived from MACRO-002 (GDP) and MACRO-001 (rates) \u2014 bull = expansion+cuts, bear = contraction+hikes",
+      "conditions": {
+        "strong_buy": "beta >= 1.5 AND market_regime == 'bull'",
+        "buy": "beta < 1.0 AND market_regime == 'bear'",
+        "neutral": "beta >= 0.8 AND beta <= 1.2",
+        "sell": "beta >= 1.5 AND market_regime == 'bear'",
+        "strong_sell": "beta >= 2.0 AND market_regime == 'bear'"
+      },
+      "rationale": "Beta <1.0 = defensive; prefer in bear markets. Beta >1.5 = amplifies market moves; suits bull market BUY. High-beta stocks get SELL signal first in downturns."
+    },
+    {
+      "id": "RISK-003",
+      "category": "risk",
+      "subcategory": "volatility_index",
+      "name": "India VIX (NSE) Market Volatility Risk",
+      "description": "India VIX (NSE) fear gauge used as a pure risk-management signal \u2014 distinct from the contrarian sentiment use in SENT-005. Focuses on position-sizing and stop-loss triggers.",
+      "confidence_weight": 0.7,
+      "category_weight": 0.5,
+      "markets": [
+        "IN"
+      ],
+      "data_required": [
+        "vix_level",
+        "vix_change_5d_pct",
+        "fundamental_score"
+      ],
+      "data_source": "nse_vix",
+      "data_sources": {
+        "IN": "nse_vix"
+      },
+      "lookback_period": "5_days",
+      "conditions": {
+        "strong_buy": "vix_level >= 35 AND fundamental_score >= 70",
+        "buy": "vix_level >= 30 AND fundamental_score >= 60",
+        "neutral": "vix_level >= 15 AND vix_level < 30",
+        "sell": "vix_level < 15 AND vix_change_5d_pct < -10",
+        "strong_sell": "vix_change_5d_pct >= 50"
+      },
+      "rationale": "India VIX (NSE) >30 = fear/capitulation zone \u2014 contrarian BUY for strong fundamentals. India VIX <15 = complacency, reduce position sizes. Spiking India VIX (5d change >=50%) = immediate risk management SELL trigger."
+    }
+  ],
+  "override_rules": [
+    {
+      "id": "OVR-O1",
+      "name": "Immediate SELL \u2014 Fraud / Accounting Restatement",
+      "priority": 1,
+      "action": "FORCE_STRONG_SELL",
+      "scope": "ALL",
+      "data_required": [
+        "has_fraud_allegation",
+        "has_material_restatement",
+        "has_sec_sebi_investigation"
+      ],
+      "trigger": "has_fraud_allegation == true OR has_material_restatement == true OR has_sec_sebi_investigation == true",
+      "overrides_score": true,
+      "rationale": "Any credible allegation of accounting fraud, material restatement, or SEC/SEBI investigation = IMMEDIATE SELL regardless of confidence score."
+    },
+    {
+      "id": "OVR-O2",
+      "name": "SELL \u2014 Guidance Withdrawn Without Explanation",
+      "priority": 2,
+      "action": "FORCE_SELL",
+      "scope": "ALL",
+      "data_required": [
+        "guidance_withdrawn_mid_year",
+        "guidance_withdrawal_explained"
+      ],
+      "trigger": "guidance_withdrawn_mid_year == true AND guidance_withdrawal_explained == false",
+      "overrides_score": true,
+      "rationale": "Company withdraws full-year guidance with no clear explanation mid-year = high uncertainty SELL. Management visibility has collapsed."
+    },
+    {
+      "id": "OVR-O3",
+      "name": "SELL \u2014 Dividend Cut on Declining Earnings",
+      "priority": 3,
+      "action": "FORCE_SELL",
+      "scope": "INCOME_PORTFOLIO",
+      "data_required": [
+        "dividend_cut_announced",
+        "earnings_declining"
+      ],
+      "trigger": "dividend_cut_announced == true AND earnings_declining == true",
+      "overrides_score": true,
+      "rationale": "A company cutting its dividend while earnings are declining signals cash flow stress and broken investment thesis."
+    },
+    {
+      "id": "OVR-O4",
+      "name": "BUY Pause \u2014 Stop-Loss Triggered",
+      "priority": 4,
+      "action": "PAUSE_BUY",
+      "scope": "EXISTING_POSITION",
+      "data_required": [
+        "price_vs_avg_purchase_price_pct"
+      ],
+      "trigger": "price_vs_avg_purchase_price_pct <= -8",
+      "overrides_score": false,
+      "rationale": "If price falls >8% below purchase price, pause all BUY signals and reassess. Prevent averaging down into a broken thesis without fresh fundamental review."
+    },
+    {
+      "id": "OVR-O5",
+      "name": "Concentration Risk Cap",
+      "priority": 5,
+      "action": "BLOCK_BUY",
+      "scope": "PORTFOLIO_LEVEL",
+      "data_required": [
+        "position_pct_of_portfolio"
+      ],
+      "trigger": "position_pct_of_portfolio >= 10",
+      "overrides_score": false,
+      "rationale": "No single stock should exceed 10% of total portfolio regardless of confidence score."
+    }
+  ]
+}
