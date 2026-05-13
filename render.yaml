@@ -1,0 +1,19 @@
+# Render Blueprint — deploy the FastAPI agent API.
+# https://render.com/docs/blueprint-spec
+#
+# After first deploy: set secret env vars in the Render dashboard (LLM keys,
+# DATABASE_URL, REDIS_URL, Upstox, etc.) and set ALLOW_ORIGINS to your Vercel URL.
+version: "1"
+services:
+  - type: web
+    name: alpha-api
+    runtime: python
+    region: singapore
+    plan: Free
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install .
+    startCommand: uvicorn apps.api.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
