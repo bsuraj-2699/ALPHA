@@ -21,7 +21,7 @@ be polite — this provider only fires once per build.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from statistics import mean
 from typing import Any
 
