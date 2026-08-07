@@ -56,6 +56,13 @@ class AgentState(TypedDict, total=False):
     # ---- RAG retrieval (list reducer to allow multiple appenders) -------
     retrieved_rules: Annotated[list[dict[str, Any]], add]
 
+    # ---- RAG market-memory (intraday only) ------------------------------
+    # Retrieved similar historical market fingerprints + an aggregate
+    # {success_rate, mean_similarity, n, cases} used to inform confidence
+    # and explanation. Never used to override the deterministic signal.
+    historical_memories: list[dict[str, Any]]
+    historical_evidence: dict[str, Any]
+
     # ---- judge + decision -----------------------------------------------
     evaluation: EvaluationResult | None
     judgment: Judgment | None

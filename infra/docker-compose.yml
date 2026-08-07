@@ -36,9 +36,11 @@ services:
     image: qdrant/qdrant:latest
     container_name: fin-qdrant
     restart: unless-stopped
+    # Host ports 6335/6336 (container 6333/6334) to avoid clashing with other
+    # local Qdrant instances on the default 6333. QDRANT_URL must match.
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6335:6333"
+      - "6336:6334"
     volumes:
       - qdrant_data:/qdrant/storage
 

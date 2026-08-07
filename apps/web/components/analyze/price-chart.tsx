@@ -73,6 +73,8 @@ export function PriceChart({ ticker, market = "IN" }: PriceChartProps) {
   const isError = priceQuery.isError;
   const isStale = data?.stale === true;
   const source = data?.source ?? null;
+  const isUnavailable =
+    !isLoading && !isError && bars.length === 0 && source === "unavailable";
 
   // Mount the chart once.
   React.useEffect(() => {
@@ -224,9 +226,9 @@ export function PriceChart({ ticker, market = "IN" }: PriceChartProps) {
               MA200
             </Badge>
           </div>
-          {isStale && (
+          {isStale && bars.length > 0 && (
             <Badge variant="warn" className="font-mono normal-case tracking-normal">
-              estimate
+              delayed
             </Badge>
           )}
         </div>
@@ -239,21 +241,23 @@ export function PriceChart({ ticker, market = "IN" }: PriceChartProps) {
               <Skeleton className="h-full w-full rounded-md" />
             </div>
           )}
-          {isError && !isLoading && bars.length === 0 && (
+          {(isError || isUnavailable) && !isLoading && bars.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center">
-              <p className="text-xs text-sell">Price feed unavailable</p>
+              <p className="text-xs text-sell">Market data unavailable</p>
               <p className="text-[10px] text-muted-foreground">
-                {priceQuery.error?.message ?? "Try again in a moment."}
+                {isError
+                  ? (priceQuery.error?.message ?? "Try again in a moment.")
+                  : "No real OHLC for this symbol from the data providers."}
               </p>
             </div>
           )}
         </div>
         <p className="mt-2 px-2 text-[10px] text-muted-foreground">
           {bars.length > 0
-            ? `${bars.length}-day OHLC · ${currency}${source ? ` · ${source}` : ""}${isStale ? " · placeholder" : ""}`
+            ? `${bars.length}-day OHLC · ${currency}${source ? ` · ${source}` : ""}${isStale ? " · delayed" : ""}`
             : isLoading
               ? "Fetching live OHLC…"
-              : "No data"}
+              : "Market data unavailable"}
         </p>
       </CardContent>
     </Card>

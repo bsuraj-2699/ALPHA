@@ -34,9 +34,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
-
 from apps.api.models import Market, PriceBar, PriceInterval, PriceQuote, PriceResponse
+from fastapi import APIRouter, HTTPException, Query, Request
 from packages.data.providers.base import MarketDataProvider
 from packages.shared.schemas import OHLCBar, Quote
 
@@ -140,45 +139,6 @@ def _cache_set(key: str, payload: PriceResponse) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Synthetic last-resort fallback
-# ---------------------------------------------------------------------------
-
-
-def _synthetic_bars(ticker: str, lookback_days: int) -> list[PriceBar]:
-    """Deterministic placeholder so the UI is never empty during outages.
-
-    The shape is intentionally simple — a slow random-walk seeded from
-    the ticker hash. Marked `stale=True` on the response so the UI can
-    overlay an "estimate only" banner.
-    """
-    import hashlib
-    import math
-
-    seed = int(hashlib.md5(ticker.upper().encode()).hexdigest()[:8], 16)
-    base = 100.0 + (seed % 9000) / 10.0
-    bars: list[PriceBar] = []
-    today = date.today()
-    for i in range(lookback_days):
-        d = today - timedelta(days=lookback_days - i)
-        # Pseudo-random walk with bounded drift.
-        x = (seed + i * 9301) % 233280
-        drift = ((x / 233280.0) - 0.5) * 0.04
-        base = max(1.0, base * (1.0 + drift))
-        wick = base * 0.012
-        bars.append(
-            PriceBar(
-                time=int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp()),
-                open=round(base * (1 + math.copysign(wick * 0.4, drift) / base), 2),
-                high=round(base + wick, 2),
-                low=round(base - wick, 2),
-                close=round(base, 2),
-                volume=0,
-            )
-        )
-    return bars
-
-
-# ---------------------------------------------------------------------------
 # Provider loop
 # ---------------------------------------------------------------------------
 
@@ -246,8 +206,9 @@ async def get_price(
 ) -> PriceResponse:
     """Real OHLC + spot quote for `ticker`.
 
-    Provider waterfall (per market): Upstox → Yahoo → synthetic. The
-    chosen source is echoed in the response under `source`.
+    Provider waterfall (per market): Upstox → Yahoo. If neither returns real
+    OHLC, `source` is `"unavailable"` and `bars` is empty (no fabricated data).
+    The chosen source is echoed in the response under `source`.
     """
     ticker = ticker.strip().upper()
     if not ticker or len(ticker) > 20:
@@ -268,14 +229,14 @@ async def get_price(
 
     bars: list[PriceBar] = []
     quote_obj: Quote | None = None
-    source = "synthetic"
+    source = "unavailable"
 
     for provider in providers:
         if market not in getattr(provider, "supported_markets", ()):
             continue
         try:
             raw = await _try_ohlc(provider, ticker, market, interval, start, end)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("price: %s timed out for %s", provider.name, ticker)
             continue
         except Exception as e:
@@ -289,7 +250,9 @@ async def get_price(
 
     stale = False
     if not bars:
-        bars = _synthetic_bars(ticker, lookback_days)
+        # No real OHLC from any provider — never fabricate candles. Surface an
+        # explicit "unavailable" state so the UI shows a message, not fake prices.
+        source = "unavailable"
         stale = True
 
     currency = "INR" if market == "IN" else "USD"
@@ -328,7 +291,10 @@ async def get_price(
         source=source,
         stale=stale,
     )
-    _cache_set(cache_key, payload)
+    # Don't cache an "unavailable" result — let the next request retry the
+    # providers rather than serving an empty chart for the whole TTL.
+    if bars:
+        _cache_set(cache_key, payload)
     return payload
 
 

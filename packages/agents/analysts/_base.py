@@ -33,12 +33,12 @@ class PromptInfo(dict[str, Any]):
 # ---------------------------------------------------------------------------
 
 
-class _OpenAINarrator:
+class _ChatNarrator:
     """Production narrator: instructor + LiteLLM, structured into ``AnalystNarrative``."""
 
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str = "meta/llama-3.3-70b-instruct",
         max_tokens: int = 2048,
         temperature: float = 0.3,
     ) -> None:
@@ -47,15 +47,10 @@ class _OpenAINarrator:
         self.temperature = temperature
 
     async def __call__(self, prompt: str, info: PromptInfo) -> AnalystNarrative:
-        from packages.agents._llm_helpers import openai_create_tracked
-        from packages.agents.llm_provider import effective_chat_model, get_litellm_instructor_client
+        from packages.agents.model_provider import get_chat_provider
 
-        client = get_litellm_instructor_client()
-        model = effective_chat_model(self.model)
-
-        return await openai_create_tracked(
-            client,
-            model=model,
+        provider = get_chat_provider(self.model)
+        return await provider.complete(
             response_model=AnalystNarrative,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
@@ -146,7 +141,7 @@ class BaseAnalyst:
         from packages.agents.llm_provider import is_any_llm_configured
 
         if is_any_llm_configured():
-            return _OpenAINarrator()
+            return _ChatNarrator()
 
         async def _offline(prompt: str, info: PromptInfo) -> AnalystNarrative:
             return _templated_narrative(self.pillar, info)

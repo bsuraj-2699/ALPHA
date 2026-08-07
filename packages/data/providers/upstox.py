@@ -1,10 +1,12 @@
 """Upstox REST adapter (Indian market data).
 
-Implements the MarketDataProvider protocol for IN equities. Quotes and OHLC
-candles come from Upstox v2 endpoints; fundamentals/news are not exposed by
-Upstox so they delegate to other providers (Screener, GDELT) via the
-ContextBuilder. Corporate actions (dividends, splits) are fetched from the
-``/corporate-actions`` endpoint.
+Implements the MarketDataProvider protocol for IN equities. Quotes come from
+the v2 market-quote endpoint and OHLC candles from the v3 historical-candle API
+(with a v2 fallback). Fundamentals/valuation come from the Upstox Company
+Fundamentals API (ISIN-keyed key-ratios + income-statement) exposed via
+``fundamentals_context`` and merged at top priority by the ContextBuilder; news
+still delegates to GDELT. Corporate actions (dividends, splits) are fetched from
+the ``/corporate-actions`` endpoint.
 
 Auth
 ----
@@ -17,11 +19,11 @@ env var only on the first call before the daily refresh has run.
 
 Instrument keys
 ---------------
-Upstox addresses instruments by ``NSE_EQ|<ISIN>`` (preferred) or
-``NSE_EQ|<symbol>``. ``symbol_to_instrument_key`` resolves either form. A
-small built-in ISIN map covers the most common NSE symbols; production
-deployments should load the full instrument master from
-``https://assets.upstox.com/market-quote/instruments/exchange/complete.csv.gz``.
+Upstox addresses instruments by ``<SEGMENT>|<ISIN>`` (e.g. ``NSE_EQ|INE002A01018``).
+``_resolve_key`` consults the full instrument master (``upstox_instruments``,
+covering all NSE + BSE equities, authoritative and fresh) first, then the static
+seed map / ticker registry as an offline fallback. It never emits a symbol-based
+guess, so unknown symbols cleanly defer to another provider.
 
 Rate limits
 -----------
@@ -32,7 +34,6 @@ RateLimiter instances so the two surfaces do not starve each other.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -41,10 +42,13 @@ from decimal import Decimal
 from typing import Any, cast
 
 import httpx
-
 from packages.data.providers.base import MarketDataProvider, OHLCInterval
 from packages.data.providers.cache import RedisCache
 from packages.data.providers.rate_limit import RateLimiter
+from packages.data.providers.upstox_instruments import (
+    InstrumentMaster,
+    get_instrument_master,
+)
 from packages.shared.schemas import (
     CorporateAction,
     Fundamentals,
@@ -58,6 +62,8 @@ logger = logging.getLogger(__name__)
 
 
 _BASE = "https://api.upstox.com/v2"
+_V3_BASE = "https://api.upstox.com/v3"
+_FUND_TTL = 12 * 60 * 60
 _TIMEOUT = 8.0
 _QUOTE_TTL = 5
 _OHLC_TTL = 5 * 60
@@ -83,6 +89,25 @@ _INTERVAL_MAP: dict[str, str] = {
     "60m": "30minute",
 }
 
+# Upstox v3 historical-candle API: /historical-candle/{key}/{unit}/{interval}/...
+# The v3 API (unlike v2) accepts 5/15-minute units and is the current endpoint;
+# we prefer it and fall back to v2 for resilience.
+_V3_INTERVAL: dict[str, tuple[str, str]] = {
+    "1m":  ("minutes", "1"),
+    "5m":  ("minutes", "5"),
+    "15m": ("minutes", "15"),
+    "30m": ("minutes", "30"),
+    "1h":  ("hours", "1"),
+    "60m": ("hours", "1"),
+    "1d":  ("days", "1"),
+    "1wk": ("weeks", "1"),
+    "1mo": ("months", "1"),
+}
+
+_INDEX_SYMBOLS: frozenset[str] = frozenset(
+    {"NIFTY", "NIFTY50", "NIFTY_50", "NIFTY-50"}
+)
+
 # Minimal seed map: bare NSE symbol → ISIN. Production should load the full
 # instrument master CSV.
 _DEFAULT_ISINS: dict[str, str] = {
@@ -103,6 +128,27 @@ def _strip_suffix(ticker: str) -> str:
     if ticker.endswith((".NS", ".BO")):
         return ticker.rsplit(".", 1)[0]
     return ticker
+
+
+def _parse_num(value: Any) -> float | None:
+    """Parse an Upstox fundamentals value (``"12.46"``/``"7.54%"``/number)."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip().replace(",", "").rstrip("%")
+    if not s or s in ("-", "NA", "N/A"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _pct_change(latest: float | None, prior: float | None) -> float | None:
+    if latest is None or prior is None or prior == 0:
+        return None
+    return round((latest - prior) / abs(prior) * 100.0, 2)
 
 
 def symbol_to_instrument_key(symbol: str, isin_map: dict[str, str] | None = None) -> str:
@@ -142,6 +188,34 @@ def symbol_to_instrument_key(symbol: str, isin_map: dict[str, str] | None = None
     return f"NSE_EQ|{bare}"
 
 
+def _offline_isin_key(symbol: str, isin_map: dict[str, str] | None = None) -> str | None:
+    """Resolve to an ISIN-form key from the seed map / registry only.
+
+    Returns ``None`` (rather than a symbol-based guess) when the symbol is not
+    known offline, so callers can consult the instrument master instead of
+    firing a request that 404s on historical candles.
+    """
+    if "|" in symbol:
+        return symbol
+    bare = _strip_suffix(symbol)
+    if bare in _INDEX_SYMBOLS:
+        return "NSE_INDEX|Nifty 50"
+    table = isin_map if isin_map is not None else _DEFAULT_ISINS
+    isin = table.get(bare)
+    if isin:
+        return f"NSE_EQ|{isin}"
+    try:
+        from packages.shared.ticker_registry import is_known, to_upstox
+
+        # ``to_upstox`` falls back to a symbol-based guess; only trust it for
+        # registered tickers so unknown symbols defer to the instrument master.
+        if is_known(bare):
+            return to_upstox(bare)
+    except ImportError:
+        pass
+    return None
+
+
 class UpstoxProvider(MarketDataProvider):
     name = "upstox"
     supported_markets: tuple[Market, ...] = ("IN",)
@@ -155,6 +229,7 @@ class UpstoxProvider(MarketDataProvider):
         quote_limiter: RateLimiter | None = None,
         historical_limiter: RateLimiter | None = None,
         isin_map: dict[str, str] | None = None,
+        instrument_master: InstrumentMaster | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("UPSTOX_API_KEY")
         self.api_secret = api_secret or os.getenv("UPSTOX_API_SECRET")
@@ -171,12 +246,46 @@ class UpstoxProvider(MarketDataProvider):
         self._isin_map = dict(_DEFAULT_ISINS)
         if isin_map:
             self._isin_map.update(isin_map)
+        self._master = instrument_master or get_instrument_master(self.cache)
 
     def register_isin(self, symbol: str, isin: str) -> None:
         self._isin_map[_strip_suffix(symbol)] = isin
 
-    def _instrument_key(self, ticker: str) -> str:
-        return symbol_to_instrument_key(ticker, self._isin_map)
+    async def _resolve_key(self, ticker: str) -> str | None:
+        """Resolve to an Upstox instrument key: master -> seed/registry -> None.
+
+        The instrument master is authoritative and fresh, so it is consulted
+        first — this corrects stale ISINs baked into the static registry (e.g.
+        after a split changes a company's ISIN). The seed/registry is only the
+        offline fallback when the master cannot load. Never returns a
+        symbol-based guess; ``None`` means "not resolvable", so callers can skip
+        Upstox and let another provider serve the request.
+        """
+        if "|" in ticker:
+            return ticker
+        bare = _strip_suffix(ticker)
+        if bare in _INDEX_SYMBOLS:
+            return "NSE_INDEX|Nifty 50"
+        try:
+            key = await self._master.resolve_instrument_key(ticker)
+        except Exception as e:  # pragma: no cover - network/parse guard
+            logger.warning("instrument master resolve failed for %s: %s", ticker, e)
+            key = None
+        if key:
+            return key
+        return _offline_isin_key(ticker, self._isin_map)
+
+    async def _resolve_isin(self, ticker: str) -> str | None:
+        """ISIN for ``ticker`` (for the ISIN-keyed fundamentals API)."""
+        key = await self._resolve_key(ticker)
+        if key and "|" in key:
+            candidate = key.split("|", 1)[1]
+            if candidate.startswith("INE") or candidate.startswith("INF"):
+                return candidate
+        try:
+            return await self._master.resolve_isin(ticker)
+        except Exception:  # pragma: no cover
+            return None
 
     async def _access_token(self) -> str:
         token = await self.cache.get("upstox:access_token")
@@ -194,6 +303,7 @@ class UpstoxProvider(MarketDataProvider):
         path: str,
         params: dict[str, Any] | None,
         limiter: RateLimiter,
+        base: str = _BASE,
     ) -> dict[str, Any] | None:
         await limiter.acquire()
         token = await self._access_token()
@@ -203,7 +313,7 @@ class UpstoxProvider(MarketDataProvider):
         }
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                resp = await client.get(f"{_BASE}{path}", params=params, headers=headers)
+                resp = await client.get(f"{base}{path}", params=params, headers=headers)
         except (httpx.HTTPError, OSError) as e:
             logger.warning("upstox %s failed: %s", path, e)
             return None
@@ -230,7 +340,9 @@ class UpstoxProvider(MarketDataProvider):
         if cached:
             return Quote.model_validate_json(cached)
 
-        instrument = self._instrument_key(ticker)
+        instrument = await self._resolve_key(ticker)
+        if not instrument:
+            raise RuntimeError(f"upstox could not resolve instrument for {ticker}")
         data = await self._request(
             "/market-quote/ltp",
             {"instrument_key": instrument},
@@ -258,6 +370,30 @@ class UpstoxProvider(MarketDataProvider):
         await self.cache.set(cache_key, quote.model_dump_json(), _QUOTE_TTL)
         return quote
 
+    async def _historical_candle(
+        self, instrument: str, interval: OHLCInterval, start: date, end: date
+    ) -> dict[str, Any] | None:
+        """Fetch candles via the v3 API, falling back to v2 on failure."""
+        v3 = _V3_INTERVAL.get(interval)
+        if v3 is not None:
+            unit, mult = v3
+            path = (
+                f"/historical-candle/{instrument}/{unit}/{mult}"
+                f"/{end.isoformat()}/{start.isoformat()}"
+            )
+            data = await self._request(
+                path, None, self.historical_limiter, base=_V3_BASE
+            )
+            if data and data.get("status") == "success":
+                return data
+        # v2 fallback (older interval vocabulary).
+        v2_interval = _INTERVAL_MAP.get(interval, interval)
+        path = (
+            f"/historical-candle/{instrument}/{v2_interval}"
+            f"/{end.isoformat()}/{start.isoformat()}"
+        )
+        return await self._request(path, None, self.historical_limiter)
+
     # ------------------------------------------------------------------ ohlc
     async def get_ohlc(
         self,
@@ -274,18 +410,19 @@ class UpstoxProvider(MarketDataProvider):
         if cached:
             return [OHLCBar.model_validate(b) for b in json.loads(cached)]
 
-        upstox_interval = _INTERVAL_MAP.get(interval, interval)
-        instrument = self._instrument_key(ticker)
-        path = f"/historical-candle/{instrument}/{upstox_interval}/{end.isoformat()}/{start.isoformat()}"
+        instrument = await self._resolve_key(ticker)
+        if not instrument:
+            logger.warning("upstox get_ohlc: could not resolve instrument for %s", ticker)
+            return []
         logger.info(
-            "upstox get_ohlc: ticker=%s instrument=%s interval=%s→%s start=%s end=%s",
-            ticker, instrument, interval, upstox_interval, start, end,
+            "upstox get_ohlc: ticker=%s instrument=%s interval=%s start=%s end=%s",
+            ticker, instrument, interval, start, end,
         )
-        data = await self._request(path, None, self.historical_limiter)
+        data = await self._historical_candle(instrument, interval, start, end)
         if not data or data.get("status") != "success":
             logger.warning(
                 "upstox get_ohlc returned no data for %s (instrument=%s, interval=%s)",
-                ticker, instrument, upstox_interval,
+                ticker, instrument, interval,
             )
             return []
 
@@ -323,11 +460,98 @@ class UpstoxProvider(MarketDataProvider):
         return bars
 
     # --------------------------------------------------------- fundamentals
+    async def _fundamentals_endpoint(self, isin: str, name: str, **params: str) -> Any:
+        data = await self._request(
+            f"/fundamentals/{isin}/{name}", params or None, self.historical_limiter
+        )
+        if not data:
+            return None
+        return data.get("data", data)
+
+    async def fundamentals_context(self, ticker: str, market: Market) -> dict[str, Any]:
+        """Context-key fundamentals/valuation from the Upstox Company Fundamentals
+        API (ISIN-keyed). Returns only the keys it could resolve; missing metrics
+        are left for the Screener/Yahoo fallback to fill.
+        """
+        if market != "IN":
+            return {}
+        isin = await self._resolve_isin(ticker)
+        if not isin:
+            return {}
+        cache_key = f"upstox:fund:{isin}"
+        cached = await self.cache.get(cache_key)
+        if cached:
+            return cast(dict[str, Any], json.loads(cached))
+
+        out: dict[str, Any] = {}
+        try:
+            out.update(await self._key_ratios(isin))
+        except Exception as e:  # pragma: no cover - defensive parse guard
+            logger.warning("upstox key-ratios parse failed for %s: %s", ticker, e)
+        try:
+            out.update(await self._income_metrics(isin))
+        except Exception as e:  # pragma: no cover
+            logger.warning("upstox income-statement parse failed for %s: %s", ticker, e)
+
+        if out:
+            await self.cache.set(cache_key, json.dumps(out), _FUND_TTL)
+        return out
+
+    async def _key_ratios(self, isin: str) -> dict[str, Any]:
+        payload = await self._fundamentals_endpoint(isin, "key-ratios", type="consolidated")
+        rows = payload if isinstance(payload, list) else (payload or {}).get("ratios") or []
+        by_name: dict[str, float | None] = {}
+        for row in rows:
+            name = str(row.get("name", "")).upper().replace(" ", "")
+            by_name[name] = _parse_num(row.get("company_value"))
+        mapping = {
+            "P/E": "pe_ratio",
+            "P/B": "pb_ratio",
+            "ROE": "roe_pct",
+            "ROA": "roa_pct",
+            "EV/EBITDA": "ev_ebitda",
+        }
+        return {ctx: by_name[src] for src, ctx in mapping.items() if by_name.get(src) is not None}
+
+    async def _income_metrics(self, isin: str) -> dict[str, Any]:
+        payload = await self._fundamentals_endpoint(
+            isin, "income-statement", type="consolidated", time_period="yearly", fs="true"
+        )
+        if not isinstance(payload, dict):
+            return {}
+        out: dict[str, Any] = {}
+
+        def _history(rows: list[dict], match: str, field: str = "category") -> list[float]:
+            for row in rows:
+                if match in str(row.get(field, "")).lower():
+                    return [
+                        v for v in (_parse_num(h.get("value")) for h in row.get("history", []))
+                        if v is not None
+                    ]
+            return []
+
+        statement = payload.get("income_statement") or []
+        revenue = _history(statement, "revenue")
+        net_profit = _history(statement, "net_profit") or _history(statement, "net profit")
+        if len(revenue) >= 2:
+            out["revenue_yoy_pct"] = _pct_change(revenue[0], revenue[1])
+        if revenue and net_profit and revenue[0]:
+            out["net_margin_current"] = round(net_profit[0] / revenue[0] * 100.0, 2)
+        if len(revenue) >= 3 and len(net_profit) >= 3 and revenue[2]:
+            out["net_margin_2q_ago"] = round(net_profit[2] / revenue[2] * 100.0, 2)
+
+        full = payload.get("full_statement") or []
+        eps = _history(full, "eps", field="particular")
+        if len(eps) >= 2:
+            out["eps_yoy_pct"] = _pct_change(eps[0], eps[1])
+        return {k: v for k, v in out.items() if v is not None}
+
     async def get_fundamentals(self, ticker: str, market: Market) -> Fundamentals:
-        # Upstox does not publish fundamentals; the ContextBuilder routes
-        # this request to ScreenerProvider instead.
+        # ``get_fundamentals`` stays unimplemented so ContextBuilder's provider
+        # chain still reaches Yahoo (for beta / target_price). Upstox fundamentals
+        # are surfaced via ``fundamentals_context`` and merged at higher priority.
         raise NotImplementedError(
-            "Upstox does not expose fundamentals — use ScreenerProvider."
+            "Use UpstoxProvider.fundamentals_context — get_fundamentals is intentionally unset."
         )
 
     # ----------------------------------------------------------------- news
@@ -343,7 +567,9 @@ class UpstoxProvider(MarketDataProvider):
     ) -> list[CorporateAction]:
         if market != "IN":
             raise ValueError(f"UpstoxProvider does not support market {market}")
-        instrument = self._instrument_key(ticker)
+        instrument = await self._resolve_key(ticker)
+        if not instrument:
+            return []
         cache_key = f"upstox:ca:{ticker}:{lookback_days}"
         cached = await self.cache.get(cache_key)
         if cached:

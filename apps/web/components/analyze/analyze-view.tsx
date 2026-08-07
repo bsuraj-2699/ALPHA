@@ -2,270 +2,175 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { History, RefreshCcw, Search } from "lucide-react";
+import { History } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/page-header";
-import { WatchlistButton } from "@/components/watchlist-button";
-import { toast } from "@/components/ui/toast";
-import { useStartAnalysis, useRun } from "@/lib/queries";
-import { useRunStream } from "@/lib/run-stream";
+import { api } from "@/lib/api";
+import { useAnalysis } from "@/lib/use-analysis";
 import { useUIStore } from "@/lib/store";
-import { toApiTicker, toDisplayTicker } from "@/lib/tickers";
-import { useWatchlistStore } from "@/lib/watchlist-store";
-import type { Decision, Market } from "@/types/api";
+import { lookupTickerName, toDisplayTicker } from "@/lib/tickers";
+import { WatchlistButton } from "@/components/watchlist-button";
+import type { Market } from "@/types/api";
 
-import { DebatePanel } from "./debate-panel";
-import { DecisionCard } from "./decision-card";
-import { OverrideBanner } from "./override-banner";
-import { PillarRadar } from "./pillar-radar";
+import { AnalystGrid } from "./analyst-grid";
+import { DecisionPanel } from "./decision-panel";
+import { LivePipeline } from "./live-pipeline";
+import { PillarScores } from "./pillar-scores";
 import { PriceChart } from "./price-chart";
-import { ReasoningStream } from "./reasoning-stream";
-import { RecentList } from "./recent-list";
+import { DebatePanel, JudgePanel } from "./synthesis-panels";
 import { TickerForm } from "./ticker-form";
 
 interface AnalyzeViewProps {
   initialTicker: string;
   initialMarket: Market;
-  /** When true, fire `/api/analyze` automatically on mount. */
   autoStart?: boolean;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string; dot: string }> = {
+    complete: { label: "Complete", cls: "border-buy/30 bg-buy/10 text-buy", dot: "bg-buy" },
+    running: { label: "Analyzing", cls: "border-accent1/30 bg-accent1/10 text-accent1", dot: "bg-accent1" },
+    pending: { label: "Queued", cls: "border-white/10 bg-white/[0.04] text-muted-foreground", dot: "bg-muted-foreground" },
+    interrupted: { label: "Awaiting review", cls: "border-gold/30 bg-gold/10 text-gold", dot: "bg-gold" },
+    error: { label: "Error", cls: "border-sell/30 bg-sell/10 text-sell", dot: "bg-sell" },
+    idle: { label: "Idle", cls: "border-white/10 bg-white/[0.03] text-muted-foreground", dot: "bg-muted-foreground" },
+  };
+  const s = map[status] ?? map.idle;
+  return (
+    <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wide ${s.cls}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${s.dot} ${status === "running" ? "animate-orb" : ""}`} />
+      {s.label}
+    </span>
+  );
 }
 
 export function AnalyzeView({
   initialTicker,
   initialMarket,
-  autoStart = false,
+  autoStart = true,
 }: AnalyzeViewProps) {
-  const router = useRouter();
-
-  // Always render the display form — strip any leftover `.NS`.
-  const initialDisplay = React.useMemo(
-    () => toDisplayTicker(initialTicker),
-    [initialTicker],
-  );
-
-  const [ticker, setTicker] = React.useState(initialDisplay);
-  const [market, setMarket] = React.useState<Market>(initialMarket);
-  const [runId, setRunId] = React.useState<string | null>(null);
-
-  const startMutation = useStartAnalysis();
-  const stream = useRunStream(runId);
-  const detail = useRun(runId);
-
+  const display = React.useMemo(() => toDisplayTicker(initialTicker), [initialTicker]);
   const pushRecent = useUIStore((s) => s.pushRecentTicker);
-  const decorateWatchlist = useWatchlistStore((s) => s.decorate);
-  const watchlistHas = useWatchlistStore((s) => s.has);
 
   React.useEffect(() => {
-    pushRecent(initialDisplay);
-  }, [initialDisplay, pushRecent]);
+    if (display) pushRecent(display);
+  }, [display, pushRecent]);
 
-  // When the URL ticker changes, sync state. (Browser back/forward, or
-  // clicking a recent.)
-  React.useEffect(() => {
-    setTicker(initialDisplay);
-    setMarket(initialMarket);
-    setRunId(null);
-  }, [initialDisplay, initialMarket]);
+  const a = useAnalysis({
+    ticker: display,
+    market: initialMarket,
+    autoStart,
+  });
 
-  // SSE may close without a parsed `decision` event (proxy quirks, etc.)
-  // while GET /api/runs/{id} is already terminal — without the API check the
-  // button stays on "Analyzing…". Treat either source as done. `useRunStream`
-  // resets on `runId` change in a layout effect so a prior "complete" does not
-  // suppress loading for the next run after one extra render.
-  const apiTerminal =
-    detail.data?.status === "complete" ||
-    detail.data?.status === "error" ||
-    detail.data?.status === "interrupted";
-  const streamTerminal =
-    stream.status === "complete" ||
-    stream.status === "error" ||
-    stream.status === "interrupted";
-  const isRunning =
-    startMutation.isPending ||
-    (Boolean(runId) && !apiTerminal && !streamTerminal);
-
-  const handleAnalyze = React.useCallback(async () => {
-    try {
-      const apiTicker = toApiTicker(ticker, market);
-      const res = await startMutation.mutateAsync({ ticker: apiTicker, market });
-      setRunId(res.run_id);
-    } catch {
-      // Errors surface via the mutation's `error` field below.
-    }
-  }, [market, startMutation, ticker]);
-
-  // Auto-start once on mount when `?auto=1` was on the URL.
-  const autoStartedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!autoStart || autoStartedRef.current) return;
-    if (!ticker || isRunning) return;
-    autoStartedRef.current = true;
-    void handleAnalyze();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, ticker]);
-
-  // Live-or-loaded decision: prefer the SSE-derived value, fall back to
-  // the API snapshot for navigations / refreshes.
-  const decision: Decision | null = stream.decision ?? detail.data?.decision ?? null;
-
-  // Mirror the freshest decision into the watchlist store so the
-  // Watchlist tab always has the latest signal/price/timestamp without
-  // a separate fetch.
-  React.useEffect(() => {
-    if (!decision) return;
-    const display = toDisplayTicker(decision.ticker || ticker);
-    if (!watchlistHas(display)) return;
-    decorateWatchlist(display, {
-      lastSignal: decision.signal,
-      lastConfidence: decision.confidence,
-      lastPrice: decision.entry_price ?? undefined,
-      lastAnalysisAt: decision.timestamp,
-      ...(runId !== null && { lastRunId: runId }),
-    });
-  }, [decision, runId, ticker, watchlistHas, decorateWatchlist]);
-
-  // Toast on completion so users get a heads-up even when the page
-  // is in the background.
-  const completedRunRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (stream.status === "complete" && runId && completedRunRef.current !== runId) {
-      completedRunRef.current = runId;
-      toast.success(`Analysis refreshed for ${ticker}`);
-    }
-  }, [stream.status, runId, ticker]);
-
-  const overrides = decision?.overrides_active ?? [];
-  const bull = (detail.data?.bull_case ?? null) as Record<string, unknown> | null;
-  const bear = (detail.data?.bear_case ?? null) as Record<string, unknown> | null;
+  const approve = React.useCallback(
+    async (response: string) => {
+      if (!a.runId) return;
+      await api.approveRun(a.runId, { response });
+      a.resume();
+    },
+    [a],
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow={`${market} · Analysis`}
-        title={
-          <span className="font-mono text-3xl tracking-tight md:text-4xl">
-            {ticker}
-          </span>
-        }
-        description="Five analysts, two debaters, one judge. Deterministic scoring, narrative-only LLMs."
-        actions={
-          <div className="flex items-center gap-2">
-            <WatchlistButton
-              ticker={ticker}
-              market={market}
-              decision={decision}
-            />
-            {runId && (
-              <Button asChild variant="outline" size="sm" className="rounded-xl">
-                <Link href={`/runs/${runId}`} className="gap-1.5">
-                  <History className="h-3.5 w-3.5" />
-                  Trace
-                </Link>
-              </Button>
-            )}
-            {runId && stream.status === "complete" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-xl"
-                onClick={() => {
-                  completedRunRef.current = null;
-                  void handleAnalyze();
-                }}
-                disabled={isRunning}
-              >
-                <RefreshCcw className="h-3.5 w-3.5" />
-                Re-run
-              </Button>
-            )}
-            <Button asChild variant="ghost" size="sm" className="rounded-xl">
-              <Link href="/analyze" className="gap-1.5">
-                <Search className="h-3.5 w-3.5" />
-                Pick another
-              </Link>
-            </Button>
-            {runId && stream.status === "complete" && (
-              <Badge variant="buy">complete</Badge>
-            )}
-            {stream.status === "interrupted" && (
-              <Badge variant="gold">awaiting review</Badge>
-            )}
-            {stream.status === "error" && <Badge variant="sell">error</Badge>}
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+            {initialMarket} · Analysis
           </div>
-        }
-      />
-
-      <div className="flex flex-col gap-4 xl:flex-row">
-        {/* LEFT: Ticker selector + recents */}
-        <aside className="flex shrink-0 flex-col gap-4 xl:w-[280px]">
-          <TickerForm
-            ticker={ticker}
-            market={market}
-            isRunning={isRunning}
-            onChange={({ ticker: t, market: m }) => {
-              setTicker(toDisplayTicker(t));
-              setMarket(m);
-            }}
-            onSubmit={() => {
-              const display = toDisplayTicker(ticker);
-              if (display !== initialDisplay || market !== initialMarket) {
-                router.replace(`/analyze/${display}`);
-              }
-              handleAnalyze();
-            }}
-          />
-
-          <RecentList activeTicker={ticker} />
-
-          {startMutation.error && (
-            <p className="px-1 text-xs text-sell">
-              {startMutation.error.message}
-            </p>
+          <div className="mt-1 flex items-center gap-3">
+            <motion.h1
+              key={display}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="font-display text-4xl font-semibold tracking-tight md:text-5xl"
+            >
+              <span className="text-gradient">{display}</span>
+            </motion.h1>
+            <StatusBadge status={a.status} />
+          </div>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            {lookupTickerName(display)} — five analysts, two debaters, one judge.
+            Deterministic scoring, narrative-only LLMs.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <WatchlistButton ticker={display} market={initialMarket} decision={a.decision} />
+          {a.runId && (
+            <Link
+              href={`/runs/${a.runId}`}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+              Trace
+            </Link>
           )}
-        </aside>
-
-        {/* CENTER: Reasoning stream */}
-        <main className="flex min-w-0 flex-1 flex-col gap-4">
-          <motion.div layout className="min-h-[560px]">
-            <ReasoningStream
-              stream={stream}
-              detail={detail.data}
-              hasRun={runId !== null}
-            />
-          </motion.div>
-        </main>
-
-        {/* RIGHT: Decision + chart + radar */}
-        <aside className="flex shrink-0 flex-col gap-4 xl:w-[380px]">
-          <DecisionCard
-            decision={decision}
-            pending={isRunning && decision === null}
-          />
-          <PriceChart ticker={ticker} />
-          <PillarRadar
-            reports={detail.data?.analyst_reports}
-            liveSlots={stream.agents}
-          />
-        </aside>
+        </div>
       </div>
 
-      {/* BOTTOM: overrides + debate */}
-      <div className="flex flex-col gap-4">
-        {overrides.length > 0 && decision && (
-          <OverrideBanner
-            overrides={overrides}
-            signal={decision.signal}
-          />
-        )}
-        <DebatePanel
-          bull={bull}
-          bear={bear}
-          pending={isRunning && bull === null && bear === null}
-        />
+      {a.status === "interrupted" && (
+        <div className="glass rounded-2xl border border-gold/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-gold">Human review required</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                A strong signal needs approval before it is finalized.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => approve("approve")}
+                className="rounded-lg border border-buy/40 bg-buy/10 px-3 py-1.5 text-xs font-medium text-buy hover:bg-buy/20"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => approve("reject")}
+                className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Downgrade to Hold
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main grid */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Left rail */}
+        <aside className="flex flex-col gap-5 xl:sticky xl:top-6 xl:self-start">
+          <TickerForm current={display} running={a.isRunning} onRerun={a.restart} />
+          <LivePipeline stages={a.stages} running={a.isRunning} />
+        </aside>
+
+        {/* Content */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <DecisionPanel
+              decision={a.decision}
+              evaluation={a.evaluation}
+              loading={a.isRunning}
+            />
+            <PriceChart ticker={display} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+            <PillarScores evaluation={a.evaluation} loading={a.isRunning} />
+            <div className="flex flex-col gap-5">
+              <AnalystGrid reports={a.analystReports} />
+            </div>
+          </div>
+
+          <DebatePanel bull={a.bullCase} bear={a.bearCase} />
+          <JudgePanel judgment={a.judgment} />
+
+          {a.error && (
+            <div className="glass rounded-2xl border border-sell/30 p-4 text-sm text-sell">
+              {a.error}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

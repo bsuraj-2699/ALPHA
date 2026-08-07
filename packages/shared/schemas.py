@@ -381,7 +381,27 @@ class Decision(BaseModel):
     confidence: float = Field(
         ge=0,
         le=100,
-        description="Post-override composite score from RuleEvaluator (0-100).",
+        description=(
+            "Calibrated estimate of P(setup is reliable), 0-100. This is the "
+            "multi-axis confidence from packages.core.confidence, NOT the raw "
+            "composite score (see ``confidence_breakdown`` and "
+            "``composite_score``)."
+        ),
+    )
+    composite_score: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Raw post-override signal strength from RuleEvaluator (0-100).",
+    )
+    confidence_breakdown: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Auditable decomposition of ``confidence``: per-axis values "
+            "(data_coverage, rule_agreement, pillar_agreement, "
+            "indicator_agreement, regime_confidence, rule_consistency, "
+            "historical_success), their weights, and evidence_quality."
+        ),
     )
     position_size_pct: float = Field(
         ge=0,

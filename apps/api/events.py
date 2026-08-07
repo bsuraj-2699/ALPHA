@@ -33,9 +33,13 @@ logger = logging.getLogger(__name__)
 
 
 # Terminal event types: the SSE generator closes once any of these fire.
-# `_terminal_` is an internal marker the RunManager publishes to ensure
-# subscribers always get a definitive end-of-stream, even on early exit.
-TERMINAL_EVENT_TYPES = frozenset({"decision", "error", "interrupted", "_terminal_"})
+# `_terminal_` is the internal marker the RunManager ALWAYS publishes (in a
+# finally block) to guarantee a definitive end-of-stream. `decision` is NOT
+# terminal: in the two-stage flow it fires on the fast path *before* enrichment
+# (analysts -> debate -> judge), so closing on it would drop every enrichment
+# event (analyst progress, pillar scores, narratives). The stream stays open
+# until `_terminal_` (or an error/interrupt).
+TERMINAL_EVENT_TYPES = frozenset({"error", "interrupted", "_terminal_"})
 
 
 def _now_iso() -> str:

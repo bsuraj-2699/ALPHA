@@ -24,11 +24,14 @@ weights reproduces the original composite formula exactly.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
 from packages.shared.schemas import ChartConfig
+
+logger = logging.getLogger(__name__)
 
 Mode = Literal["intraday", "short_term", "long_term"]
 ModePillar = Literal["technical", "sentiment", "risk", "macro", "fundamental"]
@@ -37,6 +40,9 @@ ModePillar = Literal["technical", "sentiment", "risk", "macro", "fundamental"]
 # blocks added in rules.json v2.0.1 are loaded lazily from this path so
 # operators can edit cadences without touching Python code.
 _RULES_JSON_PATH = Path(__file__).resolve().parents[1] / "core" / "rules.json"
+
+# Pillar weights must sum to 1.0; allow for float round-trip through JSON.
+_WEIGHT_SUM_TOLERANCE = 1e-6
 
 
 # Per-mode chart / polling settings. Frontend renders ``primary_interval``
@@ -206,9 +212,11 @@ class ModeConfig:
         return out
 
 
-# Mode registry. Weights match the spec exactly; intra-pillar splits use
-# the framework defaults so long-term + default RuleEvaluator weights
-# stay byte-identical to the pre-mode behaviour.
+# Mode registry. ``pillar_weights`` here is only a FALLBACK: the live values
+# come from ``modes.<mode>.pillar_weights`` in rules.json via
+# ``_pillar_weights_from_spec``, so weights are tunable without a code edit.
+# Keep these literals in sync with the JSON so the fallback isn't a surprise.
+# Intra-pillar splits use the framework defaults (see PILLAR_TO_CATEGORIES).
 _MODE_CONFIGS: dict[Mode, ModeConfig] = {
     "intraday": ModeConfig(
         mode="intraday",
@@ -227,10 +235,10 @@ _MODE_CONFIGS: dict[Mode, ModeConfig] = {
         mode="short_term",
         active_pillars=frozenset({"technical", "sentiment", "risk", "macro"}),
         pillar_weights={
-            "technical":   0.35,
+            "technical":   0.48,
             "sentiment":   0.20,
             "risk":        0.20,
-            "macro":       0.25,
+            "macro":       0.12,
             "fundamental": 0.0,
         },
         skip_screener=True,
@@ -242,11 +250,11 @@ _MODE_CONFIGS: dict[Mode, ModeConfig] = {
             {"technical", "sentiment", "risk", "macro", "fundamental"}
         ),
         pillar_weights={
-            "technical":   0.15,
+            "technical":   0.18,
             "sentiment":   0.10,
             "risk":        0.15,
-            "macro":       0.20,
-            "fundamental": 0.40,
+            "macro":       0.12,
+            "fundamental": 0.45,
         },
         skip_screener=False,
         chart_config=MODE_CHART_CONFIGS["long_term"],
@@ -281,11 +289,19 @@ def get_mode_config(mode: Mode) -> ModeConfig:
         guard for callers that thread arbitrary strings through (e.g.
         an old API client predating the field).
     """
+    cached = _resolved_mode_cache.get(mode)
+    if cached is not None:
+        return cached
+
     cfg = _MODE_CONFIGS.get(mode)
     if cfg is None:
         raise ValueError(
             f"Unknown mode {mode!r}; expected one of {sorted(_MODE_CONFIGS)}"
         )
+    weights = _pillar_weights_from_spec(mode)
+    if weights is not None:
+        cfg = replace(cfg, pillar_weights=weights)
+    _resolved_mode_cache[mode] = cfg
     return cfg
 
 
@@ -297,6 +313,10 @@ def get_mode_config(mode: Mode) -> ModeConfig:
 # process rather than on every scheduler tick. Tests can clear the cache
 # via ``_reset_rules_cache`` after monkey-patching the path.
 _rules_spec_cache: dict[str, Any] | None = None
+
+# ``_MODE_CONFIGS`` entries with their JSON weight overlay applied. Keyed by
+# mode; cleared alongside the spec cache so tests see a patched rules.json.
+_resolved_mode_cache: dict[Mode, ModeConfig] = {}
 
 
 def _load_rules_spec() -> dict[str, Any]:
@@ -317,10 +337,60 @@ def _load_rules_spec() -> dict[str, Any]:
     return _rules_spec_cache
 
 
+def _pillar_weights_from_spec(mode: Mode) -> dict[ModePillar, float] | None:
+    """Read ``modes.<mode>.pillar_weights`` from ``rules.json``.
+
+    ``rules.json`` is the source of truth for the tunable weights, so they
+    can be changed without a code edit. The literals in :data:`_MODE_CONFIGS`
+    are the fallback for sandboxes that don't ship the JSON, and for any
+    mode block the JSON doesn't define.
+
+    Returns ``None`` (keep the built-in weights) if the block is absent or
+    malformed — a bad edit must not silently reshape every signal, so the
+    problem is logged and the known-good defaults stand.
+    """
+    spec = _load_rules_spec()
+    raw = ((spec.get("modes") or {}).get(mode) or {}).get("pillar_weights")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        logger.warning("rules.json modes.%s.pillar_weights is not an object", mode)
+        return None
+
+    weights: dict[ModePillar, float] = {}
+    for pillar in PILLAR_TO_CATEGORIES:
+        value = raw.get(pillar)
+        # bool is an int subclass; a stray ``true`` must not read as 1.0.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            logger.warning(
+                "rules.json modes.%s.pillar_weights.%s missing or non-numeric; "
+                "using built-in weights",
+                mode, pillar,
+            )
+            return None
+        if value < 0:
+            logger.warning(
+                "rules.json modes.%s.pillar_weights.%s is negative; "
+                "using built-in weights", mode, pillar,
+            )
+            return None
+        weights[pillar] = float(value)
+
+    total = sum(weights.values())
+    if abs(total - 1.0) > _WEIGHT_SUM_TOLERANCE:
+        logger.warning(
+            "rules.json modes.%s.pillar_weights sum to %.4f, not 1.0; "
+            "using built-in weights", mode, total,
+        )
+        return None
+    return weights
+
+
 def _reset_rules_cache() -> None:
     """Drop the cached spec — useful after a test patches the JSON path."""
     global _rules_spec_cache
     _rules_spec_cache = None
+    _resolved_mode_cache.clear()
 
 
 @dataclass(frozen=True)

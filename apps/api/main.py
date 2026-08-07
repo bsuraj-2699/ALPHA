@@ -16,23 +16,19 @@ request. See ``apps/api/tests/conftest.py``.
 """
 
 from __future__ import annotations
-from dotenv import load_dotenv
+
 from pathlib import Path
+
+from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncIterator
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from langgraph.checkpoint.memory import MemorySaver
-
-from packages.agents.orchestrator import Orchestrator
-from packages.data.providers.cache import RedisCache
-from packages.data.providers.upstox_auth import refresh_access_token
+from typing import Any
 
 from apps.api.buckets import BucketStore, InMemoryBucketStore, RedisBucketStore
 from apps.api.config import Settings, load_settings
@@ -46,15 +42,33 @@ from apps.api.idempotency import (
 from apps.api.retrigger import RetriggerSubscriber
 from apps.api.routes import (
     analyze as analyze_routes,
+)
+from apps.api.routes import (
     buckets as buckets_routes,
+)
+from apps.api.routes import (
     health as health_routes,
+)
+from apps.api.routes import (
     portfolio as portfolio_routes,
+)
+from apps.api.routes import (
     price as price_routes,
+)
+from apps.api.routes import (
     runs as runs_routes,
+)
+from apps.api.routes import (
     watchlist as watchlist_routes,
 )
 from apps.api.runs import RunManager
 from apps.api.scheduler import DailyScheduler, IntradayScheduler
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.memory import MemorySaver
+from packages.agents.orchestrator import Orchestrator
+from packages.data.providers.cache import RedisCache
+from packages.data.providers.upstox_auth import refresh_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +211,10 @@ async def _build_checkpointer(settings: Settings) -> tuple[Any, bool]:
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
 
+    from packages.shared.tracing import init_tracing
+
+    init_tracing()
+
     log_store, db_ok = await _build_log_store(settings)
     bus, idem, redis_ok = await _build_event_bus_and_idempotency(settings)
     checkpointer, ckpt_redis_ok = await _build_checkpointer(settings)
@@ -206,14 +224,36 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # to inject test fakes. Real callers leave both at None.
     orch_override = getattr(app.state, "_orchestrator_override", None)
     cb_override = getattr(app.state, "_context_builder_override", None)
+
+    # Intraday RAG market-memory: retrieves similar historical market
+    # fingerprints as extra evidence for confidence + explanation. Wired only
+    # when Qdrant is configured; otherwise the intraday path simply runs
+    # without historical evidence (fully backward-compatible).
+    market_memory_store = None
+    market_memory_retriever = None
+    if settings.qdrant_url:
+        try:
+            from packages.rag.market_memory import (
+                MarketMemoryRetriever,
+                MarketMemoryStore,
+            )
+
+            market_memory_store = MarketMemoryStore(qdrant_url=settings.qdrant_url)
+            market_memory_retriever = MarketMemoryRetriever(market_memory_store)
+            logger.info("market memory wired (Qdrant %s)", settings.qdrant_url)
+        except Exception as e:  # pragma: no cover
+            logger.warning("market memory not wired: %s", e)
+    app.state.market_memory = market_memory_store
+
     if orch_override is not None:
         orch = orch_override
     else:
         orch = Orchestrator(
             context_builder=cb_override,
+            market_memory=market_memory_retriever,
             checkpointer=checkpointer,
             auto_approve_strong_signals=settings.auto_approve_strong_signals,
-            openai_model=settings.openai_model,
+            chat_model=settings.chat_model,
         )
     run_manager = RunManager(orch, bus, log_store)
 

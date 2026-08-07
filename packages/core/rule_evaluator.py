@@ -9,11 +9,14 @@ same inputs always produce same outputs - which is what you need for finance.
 from __future__ import annotations
 
 import json
+import logging
 import operator as op
 import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 
 # Map condition tier names to numeric scores (0-100 scale per rule)
@@ -24,6 +27,11 @@ TIER_SCORES = {
     "sell": 25,
     "strong_sell": 0,
 }
+
+# Minimum rules with usable data before a non-HOLD signal is allowed. Skipped
+# and abstained rules leave the denominator, so without a floor a thin evidence
+# base could swing the composite to an extreme on two or three inputs.
+_MIN_RULES_FOR_ACTIONABLE_SIGNAL = 8
 
 Signal = Literal["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"]
 
@@ -39,6 +47,15 @@ _OPERATORS = {
     ">=": op.ge, "<=": op.le, "==": op.eq, "!=": op.ne,
     ">": op.gt, "<": op.lt,
 }
+
+
+# Identifier-shaped dotted name, e.g. ``sector.buy_max``. Deliberately excludes
+# anything with operators or numeric parts so arithmetic isn't mistaken for it.
+_DOTTED_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
+
+# Innermost ``abs(...)`` call: the body may not itself contain parentheses, so
+# repeated application folds nested calls from the inside out.
+_ABS_CALL = re.compile(r"abs\(([^()]*)\)")
 
 
 def _coerce(token: str, ctx: dict[str, Any]) -> Any:
@@ -63,8 +80,15 @@ def _coerce(token: str, ctx: dict[str, Any]) -> Any:
     # Simple variable lookup
     if token in ctx:
         return ctx[token]
-    # Attribute access (e.g. sector.buy_max) - one level deep
-    if "." in token:
+    # Attribute access (e.g. sector.buy_max) - one level deep.
+    #
+    # Must be identifier-shaped. Testing for a bare "." here used to swallow
+    # every arithmetic expression carrying a decimal literal: "bb_upper * 0.98"
+    # split to ["bb_upper * 0", "98"], looked up nothing, and returned None —
+    # so the comparison silently evaluated False and the rule matched no tier
+    # at all. That one line is why MOM-004/005/006 and the VAL-* rules never
+    # fired. Anything not shaped like a.b falls through to arithmetic below.
+    if _DOTTED_NAME.fullmatch(token):
         parts = token.split(".")
         cur = ctx.get(parts[0])
         for p in parts[1:]:
@@ -73,16 +97,45 @@ def _coerce(token: str, ctx: dict[str, Any]) -> Any:
             else:
                 return None
         return cur
-    # Function-like helpers in expression
-    fn_match = re.match(r"^abs\((.+)\)$", token)
-    if fn_match:
-        inner = _eval_arithmetic(fn_match.group(1), ctx)
-        return abs(inner) if inner is not None else None
-    # Arithmetic expression
+    # Arithmetic expression, including any abs() calls — _eval_arithmetic folds
+    # those itself. There used to be an "^abs\((.+)\)$" shortcut here, but the
+    # greedy body matched right across an intervening operator, so
+    # "abs(a - b) / abs(c)" was parsed as one call over an unbalanced body and
+    # evaluated to nothing.
     if any(c in token for c in "+-*/()"):
         return _eval_arithmetic(token, ctx)
     # 'in [list]' / 'in name' handled by caller
     return None
+
+
+def _missing_operands(side: str, ctx: dict[str, Any]) -> bool:
+    """True if any name referenced in ``side`` is absent from the context.
+
+    Used to tell a data gap apart from a grammar failure, so only the latter
+    is reported as a defect.
+    """
+    for name in re.findall(r"[A-Za-z_][A-Za-z0-9_.]*", side):
+        if name == "abs":
+            continue
+        if _coerce(name, ctx) is None:
+            return True
+    return False
+
+
+def _reduce_abs(expr: str, ctx: dict[str, Any]) -> str | None:
+    """Replace every ``abs(...)`` sub-term with its numeric value.
+
+    Works innermost outward, so nested calls reduce correctly. Returns None if
+    any call body is unevaluable, which propagates as "no reading" rather than
+    a wrong one.
+    """
+    while (m := _ABS_CALL.search(expr)) is not None:
+        inner = _eval_arithmetic(m.group(1), ctx)
+        if inner is None:
+            return None
+        # The body has no parens, so this recursion bottoms out immediately.
+        expr = f"{expr[:m.start()]}{abs(inner)!r}{expr[m.end():]}"
+    return expr
 
 
 def _eval_arithmetic(expr: str, ctx: dict[str, Any]) -> float | None:
@@ -90,6 +143,16 @@ def _eval_arithmetic(expr: str, ctx: dict[str, Any]) -> float | None:
     Very small arithmetic evaluator. Supports + - * / and parentheses on
     numeric variables and literals. No eval(), no AST exec.
     """
+    # Fold away any abs() calls first. The shunting-yard below has no notion of
+    # functions, so "abs(a - b) / a" would otherwise tokenize a bare "abs" that
+    # resolves to nothing and kills the whole expression. _coerce only handles
+    # abs() spanning the entire token, which isn't enough for the support and
+    # resistance rules that divide the call by price.
+    reduced = _reduce_abs(expr, ctx)
+    if reduced is None:
+        return None
+    expr = reduced
+
     # Tokenize
     tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_.]*|\d+\.?\d*|[()+\-*/]", expr)
     if not tokens:
@@ -166,6 +229,22 @@ def _eval_atom(atom: str, ctx: dict[str, Any]) -> bool:
             left = _coerce(left_str, ctx)
             right = _coerce(right_str, ctx)
             if left is None or right is None:
+                # A bare name that isn't in ctx is ordinary missing data. A side
+                # with operators in it is a *structural* failure — the grammar
+                # couldn't parse something rules.json asked for — and silently
+                # answering False there is how the arithmetic bug stayed hidden.
+                for side, value in ((left_str, left), (right_str, right)):
+                    if value is None and any(c in side for c in "+-*/("):
+                        # An operand the context simply doesn't carry is
+                        # ordinary missing data; anything else means the
+                        # grammar couldn't parse what rules.json asked for.
+                        if _missing_operands(side, ctx):
+                            continue
+                        logger.warning(
+                            "unevaluable expression %r in condition %r; "
+                            "treating as no match",
+                            side.strip(), atom,
+                        )
                 return False
             try:
                 return _OPERATORS[symbol](left, right)
@@ -250,6 +329,11 @@ class RuleResult:
     matched_condition: str | None
     skipped: bool = False
     skipped_reason: str | None = None
+    # True when the rule was excluded because none of its condition tiers
+    # covered the input, as opposed to the input being missing. Both are
+    # excluded from scoring, but only a missing input is a *data* gap, so
+    # abstentions must not deflate ``data_coverage_pct``.
+    abstained: bool = False
 
 
 @dataclass
@@ -420,6 +504,7 @@ class RuleEvaluator:
         rules_in_scope = 0  # rules that apply to this market (skipped or not)
         evaluated = skipped = 0
         skipped_rule_ids: list[str] = []
+        abstained_rule_ids: list[str] = []
         for rule in self.rules:
             in_scope = market in rule["markets"]
             if in_scope:
@@ -429,8 +514,12 @@ class RuleEvaluator:
             all_results.append(res)
             if res.skipped:
                 # Only count "data missing" skips toward coverage; out-of-scope
-                # rules are not data gaps, they simply don't apply.
-                if in_scope:
+                # rules are not data gaps, they simply don't apply, and an
+                # abstention means we HAD the data but the rule's tiers didn't
+                # cover it — a rules.json defect, not a coverage problem.
+                if res.abstained:
+                    abstained_rule_ids.append(res.rule_id)
+                elif in_scope:
                     skipped += 1
                     skipped_rule_ids.append(res.rule_id)
             else:
@@ -461,12 +550,38 @@ class RuleEvaluator:
         # 4. Coverage = evaluated / in-scope * 100. When no rules apply to
         #    this market we report 100 % (vacuously full coverage) to avoid
         #    gating on a divide-by-zero.
-        coverage = (evaluated / rules_in_scope * 100.0) if rules_in_scope else 100.0
+        # Abstentions leave the denominator too: we had the data, the rule's
+        # ladder just didn't cover it, so counting them as missing data would
+        # blame the provider for a rules.json defect and depress the
+        # ``data_coverage`` confidence axis for the wrong reason.
+        coverage_denominator = rules_in_scope - len(abstained_rule_ids)
+        coverage = (
+            (evaluated / coverage_denominator * 100.0)
+            if coverage_denominator > 0 else 100.0
+        )
+        if abstained_rule_ids:
+            logger.info(
+                "%s: %d rule(s) abstained (condition ladder gap): %s",
+                ticker, len(abstained_rule_ids), ", ".join(sorted(abstained_rule_ids)),
+            )
 
         # 5. Map to signal — use the mode-specific bands when defined
         #    (rules.json modes.<mode>.thresholds), else the universal block.
         thresholds = self._thresholds_for_mode(mode)
         signal, action, notes = self._signal_from_score(composite, thresholds)
+
+        # Denominator floor. Excluding skipped and abstained rules keeps the
+        # composite honest, but it also means a handful of surviving rules can
+        # swing it to an extreme. Below the floor there isn't enough evidence
+        # to justify acting either way, so hold and say why. This only ever
+        # damps a signal toward HOLD — it never manufactures a BUY or SELL.
+        if evaluated < _MIN_RULES_FOR_ACTIONABLE_SIGNAL:
+            notes = (
+                f"Only {evaluated} rule(s) had usable data "
+                f"(minimum {_MIN_RULES_FOR_ACTIONABLE_SIGNAL} to act); "
+                f"score {composite:.1f} is not actionable. " + (notes or "")
+            ).strip()
+            signal, action = "HOLD", "HOLD"
 
         # 6. Apply override rules
         overrides_triggered = self._evaluate_overrides(ctx)
@@ -589,8 +704,18 @@ class RuleEvaluator:
                     skipped_reason=f"Missing data: {required}",
                 )
 
-        # Evaluate condition tiers in priority order: most extreme first
-        tier_order = ["strong_buy", "buy", "sell", "strong_sell", "neutral"]
+        # Evaluate condition tiers in priority order: first match wins, so each
+        # extreme must be tested before the moderate tier that subsumes it.
+        #
+        # "sell" used to precede "strong_sell", which made strong_sell almost
+        # unreachable — a strong_sell condition is nearly always a tightening of
+        # the sell condition (sell: eps < -10, strong_sell: eps < -25), so sell
+        # matched first and the rule scored 25 instead of 0. On the eval
+        # fixtures that mis-tiered 74 of 103 sell hits. The bull side was
+        # already ordered correctly, so the net effect was a systematic upward
+        # bias: bearish evidence counted at half strength and composites drifted
+        # into the HOLD band.
+        tier_order = ["strong_buy", "buy", "strong_sell", "sell", "neutral"]
         for tier in tier_order:
             cond = rule["conditions"].get(tier)
             if cond and evaluate_condition(cond, local_ctx):
@@ -602,13 +727,28 @@ class RuleEvaluator:
                     matched_condition=cond,
                 )
 
-        # No condition matched → neutral
+        # No condition matched: the rule's tiers don't cover this input, so we
+        # have no reading — abstain rather than score a full-weight 50.
+        #
+        # Scoring it neutral was the single biggest cause of every run landing
+        # in the HOLD band: a rule with a gap in its ladder contributed a
+        # constant 50 to both numerator and denominator, pulling the composite
+        # to the centre. Measured at 24% of scored rules on the eval fixtures.
+        # Abstaining is the safety net; the real fix is total condition ladders
+        # in rules.json, which is why this is logged rather than silent.
+        logger.debug(
+            "rule %s: no condition matched (gap in ladder) — abstaining",
+            rule["id"],
+        )
         return RuleResult(
             rule_id=rule["id"], rule_name=rule["name"], category=rule["category"],
             tier="neutral", score=50.0,
             confidence_weight=rule["confidence_weight"],
             category_weight=rule["category_weight"],
             matched_condition=None,
+            skipped=True,
+            skipped_reason="No condition matched (gap in rule's condition ladder)",
+            abstained=True,
         )
 
     def _is_optional_or_market_specific(self, key: str, market: str) -> bool:

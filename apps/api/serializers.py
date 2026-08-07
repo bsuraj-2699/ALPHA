@@ -83,6 +83,8 @@ def serialize_state(state: dict[str, Any]) -> dict[str, Any]:
         "decision",
         "reasoning_trace",
         "retrieved_rules",
+        "historical_memories",
+        "historical_evidence",
         "error",
     ):
         if key in state and state[key] is not None:

@@ -2,8 +2,9 @@
 
 Routing
 -------
-- Upstox:    quotes, OHLC candles (→ technicals).
-- Screener:  Indian fundamentals (ROE, FCF yield, EPS growth, …).
+- Upstox:    quotes, OHLC candles (→ technicals), and Company Fundamentals
+             (ISIN-keyed P/E, P/B, ROE, margins, growth — primary IN source).
+- Screener:  Indian fundamentals fallback (ROE, FCF yield, EPS growth, …).
 - NSE:       India VIX, FII/DII flows, option-chain PCR, NIFTY trend.
 - Yahoo:     US fundamentals/OHLC, sector/market index history (kept for
              cross-market support and as a fallback when an Indian source
@@ -33,9 +34,7 @@ from typing import Any
 from packages.data.providers.base import MarketDataProvider
 from packages.data.providers.technicals import compute_indicators
 from packages.shared.config import (
-    UPSTOX_TO_PROVIDER_INTERVAL,
     ModeConfig,
-    lookback_days_for_chart,
 )
 from packages.shared.schemas import ChartConfig, Fundamentals, Market
 
@@ -109,6 +108,7 @@ class ContextBuilder:
         nse: Any | None = None,
         gdelt: Any | None = None,
         mode_config: ModeConfig | None = None,
+        evaluator: Any | None = None,
     ) -> None:
         if not providers:
             raise ValueError("ContextBuilder requires at least one MarketDataProvider")
@@ -116,12 +116,33 @@ class ContextBuilder:
         self.screener = screener
         self.nse = nse
         self.gdelt = gdelt
+        # Shared RuleEvaluator for the fundamental_score 2nd pass. Injecting
+        # the orchestrator's singleton avoids the previous pattern of a
+        # ``sys.path.insert`` hack + re-reading rules.json from disk on every
+        # single context build (see Investigation §B3). Lazily constructed
+        # from the canonical import path when not supplied.
+        self._evaluator = evaluator
         # When ``mode_config.skip_screener`` is True, ``_fundamentals_block``
         # bypasses the (slow) Screener HTML scrape. We deliberately keep
         # the Yahoo fallback in place — its fundamentals call is cheap
         # and still useful for sector/beta lookup. ``None`` means "no
         # mode-aware tuning"; the builder behaves exactly as before.
         self.mode_config = mode_config
+
+    async def aclose(self) -> None:
+        """Release any provider that holds a network session.
+
+        Only providers exposing ``aclose`` are touched, so injected/shared ones
+        that manage their own lifetime are unaffected.
+        """
+        for provider in (self.nse, self.gdelt, self.screener, *self.providers):
+            closer = getattr(provider, "aclose", None)
+            if closer is None:
+                continue
+            try:
+                await closer()
+            except Exception:  # pragma: no cover - best-effort cleanup
+                logger.debug("provider close failed", exc_info=True)
 
     def _providers_for(self, market: Market) -> list[MarketDataProvider]:
         return [p for p in self.providers if market in p.supported_markets]
@@ -181,7 +202,7 @@ class ContextBuilder:
                 asyncio.gather(*blocks),
                 timeout=GLOBAL_BUILD_TIMEOUT_S,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "context build hit %.1fs global timeout — returning partial context",
                 GLOBAL_BUILD_TIMEOUT_S,
@@ -226,6 +247,17 @@ class ContextBuilder:
             logger.warning("fundamental_score computation failed: %s", e)
 
         return ctx
+
+    def _get_evaluator(self) -> Any:
+        """Return the shared RuleEvaluator, constructing one lazily from the
+        canonical import path (no ``sys.path`` mutation, no disk re-read per
+        build)."""
+        if self._evaluator is None:
+            from packages.core.rule_evaluator import RuleEvaluator
+
+            rules_path = Path(__file__).resolve().parents[1] / "core" / "rules.json"
+            self._evaluator = RuleEvaluator(rules_path)
+        return self._evaluator
 
     @staticmethod
     async def _safe_block(name: str, coro: Any) -> tuple[str, dict[str, Any]]:
@@ -330,10 +362,22 @@ class ContextBuilder:
                 if v is not None:
                     yahoo_extras[key] = v
 
-        # Merge: start from Yahoo, overlay Screener (Screener wins on conflict
-        # for IN since it's the canonical fundamentals source). Yahoo-only
-        # fields like ``beta`` and ``target_price_avg`` survive the merge.
-        out: dict[str, Any] = {**yahoo_extras, **screener_data}
+        # Upstox Company Fundamentals API (ISIN-keyed) is the primary IN source
+        # for valuation + fundamentals; it fills the pe/pb/roe/margin/growth keys
+        # that drive the fundamentals + valuation pillars.
+        upstox_fund: dict[str, Any] = {}
+        if market == "IN" and not skip_screener and self._upstox is not None:
+            try:
+                fetched = await self._upstox.fundamentals_context(ticker, market)
+                upstox_fund = {k: v for k, v in (fetched or {}).items() if v is not None}
+            except Exception as e:
+                logger.warning("upstox fundamentals failed for %s: %s", ticker, e)
+
+        # Merge precedence: Upstox > Screener > Yahoo. Each later source only
+        # overrides the keys it actually resolved, so partial results from any
+        # source fill the gaps of the others. Yahoo-only fields like ``beta``
+        # and ``target_price_avg`` survive the merge.
+        out: dict[str, Any] = {**yahoo_extras, **screener_data, **upstox_fund}
 
         # Sane default for beta when both sources missed it. RISK-001 reads
         # this; without a value the rule skips and the risk pillar lands at
@@ -572,13 +616,8 @@ class ContextBuilder:
         return "neutral"
 
     # --------------------------------- derived: fundamental_score (2nd pass)
-    @staticmethod
-    def _compute_fundamental_score(ticker: str, market: Market, ctx: dict[str, Any]) -> float:
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-        from rule_evaluator import RuleEvaluator  # type: ignore[import-not-found]
-
-        rules_path = Path(__file__).resolve().parents[1] / "core" / "rules.json"
-        ev = RuleEvaluator(rules_path)
+    def _compute_fundamental_score(self, ticker: str, market: Market, ctx: dict[str, Any]) -> float:
+        ev = self._get_evaluator()
         result = ev.evaluate(ticker, market, ctx)
         fund = result.pillar_scores.get("fundamentals", 50.0)
         bs = result.pillar_scores.get("balance_sheet", 50.0)

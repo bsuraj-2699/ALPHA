@@ -1,142 +1,97 @@
-"""Resolve which LLM backend to use from available API keys.
+"""Resolve the single hosted LLM backend used for narration.
 
-The pipeline uses `instructor` structured outputs. Any provider supported
-by LiteLLM works: we pick the first provider in ``LLM_PROVIDER_PRIORITY``
-that has a non-empty API key env var.
+The system uses ONE OpenAI-compatible provider that serves open-weight models
+(default: NVIDIA NIM). Two model ids are configured — a primary and a fallback —
+and both are fully capable of every narration call. The provider is
+OpenAI-compatible, so the same wiring works if the operator points
+``LLM_API_BASE`` at any other compatible host (Groq, OpenRouter, a local
+vLLM/Ollama ``/v1``).
+
+The Rule Engine and the deterministic decision path never touch this module —
+LLMs only ever write prose.
 
 Environment
 -----------
-OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY (or GOOGLE_API_KEY for
-Gemini on AI Studio), MISTRAL_API_KEY, GROQ_API_KEY
-
-Optional:
-
-LLM_PROVIDER_PRIORITY
-    Comma-separated provider ids. Default:
-    ``openai,anthropic,gemini,mistral,groq``.
-
+LLM_API_BASE
+    OpenAI-compatible base URL. Default: NVIDIA NIM
+    (``https://integrate.api.nvidia.com/v1``).
+LLM_API_KEY
+    API key for the endpoint. When empty the whole pipeline runs offline with
+    templated prose (no external calls).
 LLM_MODEL
-    Force a LiteLLM model id for all chat calls (e.g. ``gpt-4o-mini``,
-    ``anthropic/claude-3-5-sonnet-20241022``, ``gemini/gemini-2.0-flash``).
-
-OPENAI_MODEL
-    When the active provider is OpenAI and ``LLM_MODEL`` is unset, this
-    selects the model (default from callers / ``gpt-4o``).
+    Primary model id. Default ``meta/llama-3.3-70b-instruct``.
+LLM_FALLBACK_MODEL
+    Fallback model id used when the primary call fails (quota / outage / error).
+    Default ``nvidia/llama-3.1-nemotron-70b-instruct``.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Iterator
 
 # Env vars stripped by eval/offline helpers so templated fallbacks run.
 LLM_API_KEY_ENV_NAMES: tuple[str, ...] = (
-    "OPENAI_API_KEY",
-    "ANTHROPIC_API_KEY",
-    "GEMINI_API_KEY",
-    "GOOGLE_API_KEY",
-    "MISTRAL_API_KEY",
-    "GROQ_API_KEY",
+    "LLM_API_KEY",
+    "LLM_API_BASE",
 )
 
-_DEFAULT_PRIORITY: tuple[str, ...] = (
-    "openai",
-    "anthropic",
-    "gemini",
-    "mistral",
-    "groq",
-)
-
-# LiteLLM model ids when the operator does not set LLM_MODEL.
-_DEFAULT_MODELS: dict[str, str] = {
-    "openai": "gpt-4o",
-    "anthropic": "anthropic/claude-3-5-sonnet-20241022",
-    "gemini": "gemini/gemini-2.0-flash",
-    "mistral": "mistral/mistral-small-latest",
-    "groq": "groq/llama-3.3-70b-versatile",
-}
-
-_PROVIDER_KEY_ENV: dict[str, tuple[str, ...]] = {
-    "openai": ("OPENAI_API_KEY",),
-    "anthropic": ("ANTHROPIC_API_KEY",),
-    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
-    "mistral": ("MISTRAL_API_KEY",),
-    "groq": ("GROQ_API_KEY",),
-}
+DEFAULT_API_BASE = "https://integrate.api.nvidia.com/v1"
+# Both must support tool/function calling: instructor needs structured output,
+# and most NIM catalogue models fail it (InstructorRetryException) or are not
+# entitled for a given account (404 "Function ... not found"). Verified working
+# on this account; re-probe before changing.
+DEFAULT_PRIMARY_MODEL = "meta/llama-3.1-8b-instruct"
+DEFAULT_FALLBACK_MODEL = "nvidia/nvidia-nemotron-nano-9b-v2"
 
 _instructor_client: object | None = None
 
 
-def _env_nonempty(name: str) -> bool:
+def _env(name: str, default: str = "") -> str:
     v = os.getenv(name)
-    return v is not None and bool(v.strip())
+    return v.strip() if v is not None and v.strip() else default
 
 
-def _provider_has_credentials(provider: str) -> bool:
-    for key in _PROVIDER_KEY_ENV.get(provider, ()):
-        if _env_nonempty(key):
-            return True
-    return False
+def api_base() -> str:
+    return _env("LLM_API_BASE", DEFAULT_API_BASE)
 
 
-def _parse_priority() -> tuple[str, ...]:
-    raw = os.getenv("LLM_PROVIDER_PRIORITY", "")
-    if not raw.strip():
-        return _DEFAULT_PRIORITY
-    parts = tuple(p.strip().lower() for p in raw.split(",") if p.strip())
-    if not parts:
-        return _DEFAULT_PRIORITY
-    unknown = [p for p in parts if p not in _PROVIDER_KEY_ENV]
-    if unknown:
-        # Ignore unknown tokens so a typo does not blank the whole list.
-        parts = tuple(p for p in parts if p in _PROVIDER_KEY_ENV)
-    return parts or _DEFAULT_PRIORITY
+def api_key() -> str:
+    return _env("LLM_API_KEY")
 
 
-@dataclass(frozen=True)
-class ResolvedLLM:
-    """Active chat LLM (LiteLLM routing + model id)."""
-
-    provider: str
-    model: str
+def primary_model() -> str:
+    return _env("LLM_MODEL", DEFAULT_PRIMARY_MODEL)
 
 
-def resolve_llm() -> ResolvedLLM | None:
-    """First provider in priority order with any configured API key."""
-    for provider in _parse_priority():
-        if _provider_has_credentials(provider):
-            model = effective_chat_model_for_provider(provider)
-            return ResolvedLLM(provider=provider, model=model)
-    return None
+def fallback_model() -> str:
+    return _env("LLM_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
+
+
+def request_timeout() -> float:
+    """Per-call timeout (seconds). A slow/hung model then raises so the failover
+    layer tries the fallback (or the caller uses templated prose)."""
+    raw = _env("LLM_TIMEOUT", "25")
+    try:
+        val = float(raw)
+    except ValueError:
+        return 25.0
+    return val if val > 0 else 25.0
+
+
+def model_ids() -> list[str]:
+    """Primary then fallback, de-duplicated, preserving order."""
+    ids: list[str] = []
+    for m in (primary_model(), fallback_model()):
+        if m and m not in ids:
+            ids.append(m)
+    return ids
 
 
 def is_any_llm_configured() -> bool:
-    return resolve_llm() is not None
-
-
-def effective_chat_model_for_provider(provider: str) -> str:
-    """Model id for ``provider`` respecting ``LLM_MODEL`` / ``OPENAI_MODEL``."""
-    forced = os.getenv("LLM_MODEL", "").strip()
-    if forced:
-        return forced
-    if provider == "openai":
-        return os.getenv("OPENAI_MODEL", "").strip() or _DEFAULT_MODELS["openai"]
-    return _DEFAULT_MODELS.get(provider, _DEFAULT_MODELS["openai"])
-
-
-def effective_chat_model(openai_fallback: str) -> str:
-    """Model for the currently resolved provider (or OpenAI-style fallback)."""
-    forced = os.getenv("LLM_MODEL", "").strip()
-    if forced:
-        return forced
-    resolved = resolve_llm()
-    if resolved is None:
-        return openai_fallback
-    if resolved.provider == "openai":
-        return os.getenv("OPENAI_MODEL", "").strip() or openai_fallback
-    return resolved.model
+    """True when an API key is present — otherwise the pipeline stays offline."""
+    return bool(api_key())
 
 
 def get_litellm_instructor_client() -> object:
@@ -145,14 +100,16 @@ def get_litellm_instructor_client() -> object:
     if _instructor_client is None:
         import instructor
         import litellm
+        from packages.shared.tracing import init_tracing
 
+        init_tracing()
         _instructor_client = instructor.from_litellm(litellm.acompletion)
     return _instructor_client
 
 
 @contextmanager
 def llm_env_stripped_offline() -> Iterator[dict[str, str | None]]:
-    """Remove all known LLM API keys; restore prior values on exit.
+    """Remove the LLM credentials; restore prior values on exit.
 
     Returns the mapping of env name -> original value (for tests).
     """
@@ -170,12 +127,16 @@ def llm_env_stripped_offline() -> Iterator[dict[str, str | None]]:
 
 
 __all__ = [
+    "DEFAULT_API_BASE",
+    "DEFAULT_FALLBACK_MODEL",
+    "DEFAULT_PRIMARY_MODEL",
     "LLM_API_KEY_ENV_NAMES",
-    "ResolvedLLM",
-    "effective_chat_model",
-    "effective_chat_model_for_provider",
+    "api_base",
+    "api_key",
+    "fallback_model",
     "get_litellm_instructor_client",
     "is_any_llm_configured",
     "llm_env_stripped_offline",
-    "resolve_llm",
+    "model_ids",
+    "primary_model",
 ]

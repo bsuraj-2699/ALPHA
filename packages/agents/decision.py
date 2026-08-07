@@ -88,10 +88,33 @@ class DecisionAgent:
         context: dict[str, Any],
         data_coverage_pct: float = 100.0,
         mode: Mode = "long_term",
+        evaluation: Any | None = None,
+        historical_success: float | None = None,
+        historical_similarity: float | None = None,
+        n_historical: int = 0,
     ) -> Decision:
         signal = judgment.signal
         position_size = self.position_sizing.get(signal, 0.0)
         position_size = min(position_size, _PORTFOLIO_CAP_PCT)
+
+        # Calibrated confidence: P(setup reliable) from multiple evidence axes.
+        # Falls back to the composite score only when no evaluation is passed
+        # (keeps legacy callers working). The LLM never touches this number.
+        composite = judgment.composite_score
+        breakdown_payload: dict[str, Any] = {}
+        confidence_value = composite
+        if evaluation is not None:
+            from packages.core.confidence import compute_confidence
+
+            breakdown = compute_confidence(
+                evaluation,
+                context,
+                historical_success=historical_success,
+                historical_similarity=historical_similarity,
+                n_historical=n_historical,
+            )
+            confidence_value = breakdown.confidence
+            breakdown_payload = breakdown.as_dict()
 
         # Low-coverage guardrail: when fewer than 60 % of in-scope rules
         # had data, the signal is genuinely uncertain. Cap position size
@@ -112,7 +135,9 @@ class DecisionAgent:
             ticker=ticker,
             market=market,
             signal=signal,
-            confidence=judgment.composite_score,
+            confidence=confidence_value,
+            composite_score=composite,
+            confidence_breakdown=breakdown_payload,
             position_size_pct=position_size,
             entry_price=entry_price,
             stop_loss=stop_loss,

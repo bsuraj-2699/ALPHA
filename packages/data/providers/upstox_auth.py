@@ -48,9 +48,19 @@ async def refresh_access_token(cache: RedisCache | None = None) -> str | None:
         logger.warning("upstox refresh skipped — UPSTOX_API_KEY/SECRET missing")
         return None
     if not (auth_code or refresh_token):
-        logger.warning(
-            "upstox refresh skipped — neither UPSTOX_AUTH_CODE nor UPSTOX_REFRESH_TOKEN set"
-        )
+        # A static/extended access token needs no daily OAuth refresh — the
+        # provider reads UPSTOX_ACCESS_TOKEN directly. Only warn when no token
+        # is configured at all (nothing to authenticate with).
+        if os.getenv("UPSTOX_ACCESS_TOKEN"):
+            logger.info(
+                "upstox using configured static/extended access token — "
+                "daily OAuth refresh not required"
+            )
+        else:
+            logger.warning(
+                "upstox refresh skipped — no UPSTOX_ACCESS_TOKEN, UPSTOX_AUTH_CODE, "
+                "or UPSTOX_REFRESH_TOKEN set"
+            )
         return None
 
     if refresh_token:

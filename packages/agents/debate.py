@@ -24,12 +24,12 @@ class _DebateAgent:
     def __init__(
         self,
         narrator: DebateNarrator | None = None,
-        openai_model: str = "gpt-4o",
+        chat_model: str = "meta/llama-3.3-70b-instruct",
         max_tokens: int = 1500,
         temperature: float = 0.3,
     ) -> None:
         self._narrator    = narrator
-        self.openai_model = openai_model
+        self.chat_model = chat_model
         self.max_tokens   = max_tokens
         self.temperature  = temperature
 
@@ -73,14 +73,10 @@ class _DebateAgent:
 
     def _openai_narrator(self) -> DebateNarrator:
         async def _call(prompt: str, info: dict[str, Any]) -> DebateOutput:  # noqa: ARG001
-            from packages.agents._llm_helpers import openai_create_tracked
-            from packages.agents.llm_provider import effective_chat_model, get_litellm_instructor_client
+            from packages.agents.model_provider import get_chat_provider
 
-            client = get_litellm_instructor_client()
-            model = effective_chat_model(self.openai_model)
-            return await openai_create_tracked(
-                client,
-                model=model,
+            provider = get_chat_provider(self.chat_model)
+            return await provider.complete(
                 response_model=self.response_model,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,

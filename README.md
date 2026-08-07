@@ -38,7 +38,7 @@ Multi-agent financial analysis for **Indian equities (NSE)**. The system combine
    ```
 
 5. **Context build** (`ContextBuilder`) pulls OHLC, fundamentals, news/sentiment hooks, etc., from configured providers into one structured context dict. If a provider fails or rate-limits, some fields may be absent; the **rule engine** then marks individual rules as *skipped* (missing required inputs). That is separate from the LLM: narrative uses whatever context exists; scores come from rules that could run.
-6. **Analysts** (per pillar) call an **instructor** client backed by **LiteLLM** so structured narratives work with **OpenAI, Anthropic, Gemini, Mistral, or Groq** depending on which API key is configured (see [LLMs](#llms-multi-provider) below).
+6. **Analysts** (per pillar) call an **instructor** client backed by **LiteLLM** against one OpenAI-compatible endpoint serving open-weight models (see [LLM](#llm-single-provider-open-weight-models) below).
 7. **Debate** runs bull and bear agents on those reports to produce structured bull/bear cases (same LLM stack as analysts).
 8. **Judge** calls **`RuleEvaluator.evaluate()`** first — signals, scores, and **override rules** from `rules.json` are **deterministic**. The LLM then adds narrative and may be skipped or templated when score-only overrides fire. Optional **RAG** can enrich the judge if Qdrant is configured.
 9. **Decision** (`DecisionAgent`) is **fully deterministic**: position sizing bands, stop/target from context, `requires_human_review`, and low–data-coverage caps — **no LLM** — so “moving money” logic stays auditable.
@@ -65,27 +65,31 @@ Important variables (see `.env.example` for the full list):
 - **Data**: Upstox keys/tokens; optional `SCREENER_SESSION_COOKIE`.
 - **Infra**: `DATABASE_URL`, `REDIS_URL`, `QDRANT_URL` — if unset, the API falls back to in-memory stores where possible; `/health` reports what is configured.
 
-### LLMs (multi-provider)
+### LLM (single provider, open-weight models)
 
-Chat flows (**query parse**, pillar **analysts**, **debate**, **judge**) use **`instructor`** with **`litellm`** as the completion backend. Set **at least one** of these (non-empty) API keys:
+Chat flows (**query parse**, pillar **analysts**, **debate**, **judge**) use **`instructor`** with **`litellm`** against **one** OpenAI-compatible endpoint. The default is **NVIDIA NIM** (free tier, works from India, hosts open-weight models); the same wiring works for any compatible host (Groq, OpenRouter, a local vLLM/Ollama `/v1`) by changing the base URL and model ids.
 
-| Variable | Provider |
-|----------|----------|
-| `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic |
-| `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Google Gemini (AI Studio) |
-| `MISTRAL_API_KEY` | Mistral |
-| `GROQ_API_KEY` | Groq |
+| Variable | Meaning |
+|----------|---------|
+| `LLM_API_BASE` | OpenAI-compatible base URL (default `https://integrate.api.nvidia.com/v1`) |
+| `LLM_API_KEY` | Endpoint API key. **Blank = fully offline** (templated prose, no calls) |
+| `LLM_MODEL` | **Primary** model id (default `meta/llama-3.1-8b-instruct`). Must support tool/function calling — instructor needs structured output |
+| `LLM_FALLBACK_MODEL` | **Fallback** model, used automatically if the primary fails (default `nvidia/nvidia-nemotron-nano-9b-v2`). Must also support tool/function calling, or every failover silently burns the timeout budget |
 
-Resolution logic lives in `packages/agents/llm_provider.py`:
+Resolution and the primary→fallback failover live in `packages/agents/llm_provider.py` + `model_provider.py`. Every call is wrapped by a **rate limiter and guardrails** (`packages/agents/guardrails.py`):
 
-- **`LLM_PROVIDER_PRIORITY`** (optional): comma-separated order, default `openai,anthropic,gemini,mistral,groq`. The **first** provider in this list that has a configured key is used for all chat steps.
-- **`LLM_MODEL`** (optional): force a single LiteLLM model id for every chat call (must match the active provider), e.g. `gpt-4o-mini`, `anthropic/claude-3-5-sonnet-20241022`, `gemini/gemini-2.0-flash`.
-- **`OPENAI_MODEL`** (optional): when the active provider is **OpenAI** and `LLM_MODEL` is unset, selects the OpenAI model (API default in `apps/api/config.py` is `gpt-4o`).
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `LLM_MAX_REQUESTS_PER_MINUTE` | `60` | Sliding-window RPM cap on model calls |
+| `LLM_MAX_CONCURRENCY` | `4` | Max in-flight model calls |
+| `LLM_MAX_PROMPT_CHARS` | `24000` | Per-message prompt truncation |
+| `LLM_MAX_OUTPUT_CHARS` | `4000` | Narration truncation + control-char stripping |
 
-If **no** LLM key is set, narrators and the parse step use **templated fallbacks** (no external LLM calls). Python dependency: **`litellm`** (see `pyproject.toml`).
+**Tracing**: set `LANGSMITH_API_KEY` (and optionally `LANGSMITH_PROJECT`) to capture every model call in [LangSmith](https://smith.langchain.com); blank key = disabled.
 
-**Embeddings** (optional RAG path in `packages/rag/embeddings.py`): when `EMBEDDING_PROVIDER=openai`, OpenAI embeddings still expect `OPENAI_API_KEY`; that path is independent of the multi-provider chat resolver above.
+If **no** LLM key is set, narrators and the parse step use **templated fallbacks** (no external LLM calls). Python dependencies: **`litellm`**, **`langsmith`** (see `pyproject.toml`).
+
+**Embeddings** (optional RAG path in `packages/rag/embeddings.py`): independent of the chat provider above; the live intraday market-memory path uses local `fastembed`.
 
 ### Context data vs “rules skipped”
 
@@ -103,7 +107,7 @@ cp apps/web/.env.example apps/web/.env.local
 
 Optional API env (see `apps/api/config.py`):
 
-- `AUTO_APPROVE_STRONG_SIGNALS`, `OPENAI_MODEL` (OpenAI-only model when that provider is active), `IDEMPOTENCY_TTL_HOURS`, `SSE_KEEPALIVE_SECONDS`, `ALLOW_ORIGINS` (comma-separated; use `*` only in dev).
+- `AUTO_APPROVE_STRONG_SIGNALS`, `LLM_MODEL` (offline fallback narration model id), `IDEMPOTENCY_TTL_HOURS`, `SSE_KEEPALIVE_SECONDS`, `ALLOW_ORIGINS` (comma-separated; use `*` only in dev).
 
 ### Local debugging
 

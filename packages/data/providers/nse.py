@@ -78,6 +78,22 @@ class NSEProvider:
         self._session = session
         return session
 
+    async def aclose(self) -> None:
+        """Close the warmed session.
+
+        Callers that construct an NSEProvider own its lifetime; without this the
+        aiohttp session is only reclaimed by the GC, which logs "Unclosed client
+        session" and leaks a connector per run.
+        """
+        session = self._session
+        self._session = None
+        self._warm = False
+        if session is not None:
+            try:
+                await session.close()
+            except Exception:  # pragma: no cover - best-effort cleanup
+                logger.debug("nse session close failed", exc_info=True)
+
     async def _warm_session(self) -> None:
         if self._warm:
             return

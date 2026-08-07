@@ -42,7 +42,7 @@
       "description": "Beta (market-regime adjusted) and India VIX volatility risk"
     }
   },
-  "_pillar_weight_note": "Risk pillar (0.12) now comprises Beta + India VIX volatility only; Earnings Guidance rule removed. Sentiment pillar (0.15) covers: news NLP score, FII/DII flows (IN), sector RS, intraday price+volume spike, and India VIX contrarian (IN). Sentiment and valuation (0.18) together carry 0.33 weight, unchanged from prior version. Overall composite formula unchanged.",
+  "_pillar_weight_note": "modes.<mode>.pillar_weights is the SOURCE OF TRUTH for scoring weights, read by ModeConfig in packages/shared/config.py; the literals there are only a fallback when this file is unreadable. Weights must use the five canonical pillar names (technical, sentiment, fundamental, macro, risk) and sum to 1.0, or the loader logs a warning and keeps the built-in defaults. Per-mode category weights are DERIVED via PILLAR_TO_CATEGORIES and must not be listed here. Note that the sentiment pillar is only 45% sentiment: it splits 15/33 sentiment and 18/33 valuation, so lowering it also lowers valuation. Risk pillar comprises Beta + India VIX volatility only.",
   "scoring_formula": {
     "expression": "score = (fundamentals * 0.25) + (technicals * 0.20) + (sentiment * 0.15) + (valuation * 0.18) + (macro * 0.10) + (risk * 0.12)",
     "technicals_composition": "technicals = (trend_score * 0.625) + (momentum_score * 0.375)",
@@ -60,28 +60,28 @@
   },
   "thresholds": [
     {
-      "min": 80,
+      "min": 85,
       "max": 100,
       "signal": "STRONG_BUY",
       "action": "Full position; consider leverage if risk-tolerant",
       "notes": "All pillars aligned. Rare confluence signal."
     },
     {
-      "min": 65,
-      "max": 79.99,
+      "min": 63,
+      "max": 84.99,
       "signal": "BUY",
       "action": "Initiate position; scale in on pullbacks",
       "notes": "Most factors positive. Normal entry point."
     },
     {
       "min": 45,
-      "max": 64.99,
+      "max": 62.99,
       "signal": "HOLD",
       "action": "Hold existing; no new entry; tight stop-loss",
       "notes": "Mixed signals. Wait for confirmation."
     },
     {
-      "min": 25,
+      "min": 15.0,
       "max": 44.99,
       "signal": "SELL",
       "action": "Trim position; exit on bounces",
@@ -89,7 +89,7 @@
     },
     {
       "min": 0,
-      "max": 24.99,
+      "max": 14.99,
       "signal": "STRONG_SELL",
       "action": "Full exit; consider protective puts",
       "notes": "Systemic breakdown across pillars."
@@ -115,46 +115,36 @@
       "primary_chart_interval": "5minute",
       "lookback_candles": 78,
       "pillar_weights": {
-        "technicals": 0.5,
-        "sentiment": 0.25,
-        "risk": 0.25,
+        "technical": 0.40,
+        "sentiment": 0.30,
+        "risk": 0.30,
         "macro": 0.0,
-        "fundamentals": 0.0
-      },
-      "category_weights": {
-        "trend": 0.3125,
-        "momentum": 0.1875,
-        "sentiment": 0.25,
-        "risk": 0.25,
-        "fundamentals": 0.0,
-        "balance_sheet": 0.0,
-        "valuation": 0.0,
-        "macro": 0.0
+        "fundamental": 0.0
       },
       "thresholds": [
         {
-          "min": 70,
+          "min": 78,
           "max": 100,
           "signal": "STRONG_BUY",
           "action": "Aggressive long; tight 0.5% stop",
           "notes": "All intraday-active pillars confluent. Rare in a session."
         },
         {
-          "min": 65,
-          "max": 69.99,
+          "min": 63,
+          "max": 77.99,
           "signal": "BUY",
           "action": "Initiate intraday long; 0.75% stop",
           "notes": "Technicals strong, sentiment supportive."
         },
         {
           "min": 45,
-          "max": 64.99,
+          "max": 62.99,
           "signal": "HOLD",
           "action": "No new entry; manage existing only",
           "notes": "Mixed intraday signals \u2014 wait for confirmation."
         },
         {
-          "min": 30,
+          "min": 22.0,
           "max": 44.99,
           "signal": "SELL",
           "action": "Trim or exit on bounce",
@@ -162,7 +152,7 @@
         },
         {
           "min": 0,
-          "max": 29.99,
+          "max": 21.99,
           "signal": "STRONG_SELL",
           "action": "Full exit; consider intraday short if mandate allows",
           "notes": "Multi-pillar breakdown."
@@ -196,46 +186,36 @@
       "primary_chart_interval": "1day",
       "lookback_candles": 90,
       "pillar_weights": {
-        "technicals": 0.4,
-        "sentiment": 0.2,
-        "macro": 0.15,
-        "risk": 0.25,
-        "fundamentals": 0.0
-      },
-      "category_weights": {
-        "trend": 0.25,
-        "momentum": 0.15,
-        "sentiment": 0.2,
-        "risk": 0.25,
-        "macro": 0.15,
-        "fundamentals": 0.0,
-        "balance_sheet": 0.0,
-        "valuation": 0.0
+        "technical": 0.48,
+        "sentiment": 0.20,
+        "macro": 0.12,
+        "risk": 0.20,
+        "fundamental": 0.0
       },
       "thresholds": [
         {
-          "min": 75,
+          "min": 82,
           "max": 100,
           "signal": "STRONG_BUY",
           "action": "Initiate swing long; 5% stop, 10% target",
           "notes": "Trend + macro tailwind + risk-on regime."
         },
         {
-          "min": 60,
-          "max": 74.99,
+          "min": 63,
+          "max": 81.99,
           "signal": "BUY",
           "action": "Scale into position over 2 sessions",
           "notes": "Setup is constructive; manage size."
         },
         {
           "min": 40,
-          "max": 59.99,
+          "max": 62.99,
           "signal": "HOLD",
           "action": "Hold existing; no new swing entries",
           "notes": "Mixed signals; sit out the chop."
         },
         {
-          "min": 25,
+          "min": 18.0,
           "max": 39.99,
           "signal": "SELL",
           "action": "Exit swing positions",
@@ -243,7 +223,7 @@
         },
         {
           "min": 0,
-          "max": 24.99,
+          "max": 17.99,
           "signal": "STRONG_SELL",
           "action": "Full exit; lock losses",
           "notes": "Trend reversal confirmed."
@@ -278,47 +258,36 @@
       "primary_chart_interval": "1week",
       "lookback_candles": 104,
       "pillar_weights": {
-        "fundamentals": 0.4,
-        "technicals": 0.15,
-        "sentiment": 0.1,
-        "valuation": 0.0,
-        "macro": 0.2,
+        "fundamental": 0.45,
+        "technical": 0.18,
+        "sentiment": 0.10,
+        "macro": 0.12,
         "risk": 0.15
-      },
-      "category_weights": {
-        "fundamentals": 0.125,
-        "balance_sheet": 0.125,
-        "trend": 0.125,
-        "momentum": 0.075,
-        "sentiment": 0.15,
-        "valuation": 0.18,
-        "macro": 0.1,
-        "risk": 0.12
       },
       "thresholds": [
         {
-          "min": 80,
+          "min": 85,
           "max": 100,
           "signal": "STRONG_BUY",
           "action": "Full position; consider leverage if risk-tolerant",
           "notes": "All pillars aligned. Rare confluence signal."
         },
         {
-          "min": 65,
-          "max": 79.99,
+          "min": 63,
+          "max": 84.99,
           "signal": "BUY",
           "action": "Initiate position; scale in on pullbacks",
           "notes": "Most factors positive. Normal entry point."
         },
         {
           "min": 45,
-          "max": 64.99,
+          "max": 62.99,
           "signal": "HOLD",
           "action": "Hold existing; no new entry; tight stop-loss",
           "notes": "Mixed signals. Wait for confirmation."
         },
         {
-          "min": 25,
+          "min": 15.0,
           "max": 44.99,
           "signal": "SELL",
           "action": "Trim position; exit on bounces",
@@ -326,7 +295,7 @@
         },
         {
           "min": 0,
-          "max": 24.99,
+          "max": 14.99,
           "signal": "STRONG_SELL",
           "action": "Full exit; consider protective puts",
           "notes": "Systemic breakdown across pillars."
@@ -417,7 +386,7 @@
       "conditions": {
         "strong_buy": "eps_yoy_pct >= 20 AND eps_qoq_pct > 0",
         "buy": "eps_yoy_pct >= 10 AND eps_qoq_pct >= 0",
-        "neutral": "eps_yoy_pct >= 0 AND eps_yoy_pct < 10",
+        "neutral": "(eps_yoy_pct >= -10 AND eps_yoy_pct < 10) OR (eps_yoy_pct >= 10 AND eps_qoq_pct < 0)",
         "sell": "eps_misses_consecutive >= 2 OR eps_yoy_pct < -10",
         "strong_sell": "eps_misses_consecutive >= 3 OR eps_yoy_pct < -25"
       },
@@ -447,7 +416,7 @@
       "conditions": {
         "strong_buy": "revenue_yoy_pct >= 15",
         "buy": "revenue_yoy_pct >= 8",
-        "neutral": "revenue_yoy_pct >= 0 AND revenue_yoy_pct < 8",
+        "neutral": "revenue_yoy_pct >= -5 AND revenue_yoy_pct < 8",
         "sell": "revenue_decline_quarters_consecutive >= 2 OR revenue_yoy_pct < -5",
         "strong_sell": "revenue_decline_quarters_consecutive >= 3 OR revenue_yoy_pct < -15"
       },
@@ -839,7 +808,7 @@
       "conditions": {
         "strong_buy": "stoch_k < 20 AND stoch_d < 20 AND stoch_k > stoch_d AND stoch_k_prev <= stoch_d_prev",
         "buy": "stoch_k < 30 AND stoch_k > stoch_d",
-        "neutral": "stoch_k >= 30 AND stoch_k <= 70",
+        "neutral": "(stoch_k >= 30 AND stoch_k <= 70) OR (stoch_k < 30 AND stoch_k <= stoch_d) OR (stoch_k > 70 AND stoch_k >= stoch_d)",
         "sell": "stoch_k > 70 AND stoch_k < stoch_d",
         "strong_sell": "stoch_k > 80 AND stoch_d > 80 AND stoch_k < stoch_d AND stoch_k_prev >= stoch_d_prev"
       },
@@ -940,7 +909,7 @@
       "conditions": {
         "strong_buy": "bounced_off_support_today == true AND volume_today >= (volume_avg_20d * 1.5)",
         "buy": "abs(current_price - nearest_support) / current_price < 0.02",
-        "neutral": "current_price > nearest_support * 1.05 AND current_price < nearest_resistance * 0.95",
+        "neutral": "abs(current_price - nearest_support) / current_price >= 0.02 AND abs(current_price - nearest_resistance) / current_price >= 0.02",
         "sell": "abs(current_price - nearest_resistance) / current_price < 0.02",
         "strong_sell": "broke_support_today == true AND volume_today >= (volume_avg_20d * 1.5)"
       },
@@ -1236,7 +1205,7 @@
       "conditions": {
         "strong_buy": "rs_line_at_3m_high == true AND stock_return_3m_pct > sector_return_3m_pct AND stock_return_3m_pct > market_return_3m_pct",
         "buy": "stock_return_3m_pct > sector_return_3m_pct AND stock_return_3m_pct > market_return_3m_pct",
-        "neutral": "abs(stock_return_3m_pct - market_return_3m_pct) < 2",
+        "neutral": "abs(stock_return_3m_pct - market_return_3m_pct) < 2 OR (stock_return_3m_pct >= sector_return_3m_pct AND stock_return_3m_pct <= market_return_3m_pct) OR (stock_return_3m_pct <= sector_return_3m_pct AND stock_return_3m_pct >= market_return_3m_pct)",
         "sell": "stock_return_3m_pct < sector_return_3m_pct AND stock_return_3m_pct < market_return_3m_pct",
         "strong_sell": "(stock_return_3m_pct - market_return_3m_pct) < -10"
       },
@@ -1510,7 +1479,7 @@
       "conditions": {
         "strong_buy": "dividend_yield_pct >= 4 AND payout_ratio_pct < 60 AND dividend_growth_5y_pct > 0",
         "buy": "dividend_yield_pct >= 3 AND payout_ratio_pct < 60",
-        "neutral": "dividend_yield_pct >= 1.5 AND payout_ratio_pct < 80",
+        "neutral": "dividend_yield_pct >= 1.5 AND payout_ratio_pct < 90",
         "sell": "payout_ratio_pct >= 90 AND earnings_declining == true",
         "strong_sell": "payout_ratio_pct >= 100 AND earnings_declining == true"
       },
@@ -1541,7 +1510,7 @@
       "conditions": {
         "strong_buy": "beta >= 1.5 AND market_regime == 'bull'",
         "buy": "beta < 1.0 AND market_regime == 'bear'",
-        "neutral": "beta >= 0.8 AND beta <= 1.2",
+        "neutral": "beta < 1.5 OR (market_regime != 'bull' AND market_regime != 'bear')",
         "sell": "beta >= 1.5 AND market_regime == 'bear'",
         "strong_sell": "beta >= 2.0 AND market_regime == 'bear'"
       },
@@ -1607,20 +1576,6 @@
       "trigger": "guidance_withdrawn_mid_year == true AND guidance_withdrawal_explained == false",
       "overrides_score": true,
       "rationale": "Company withdraws full-year guidance with no clear explanation mid-year = high uncertainty SELL. Management visibility has collapsed."
-    },
-    {
-      "id": "OVR-O3",
-      "name": "SELL \u2014 Dividend Cut on Declining Earnings",
-      "priority": 3,
-      "action": "FORCE_SELL",
-      "scope": "INCOME_PORTFOLIO",
-      "data_required": [
-        "dividend_cut_announced",
-        "earnings_declining"
-      ],
-      "trigger": "dividend_cut_announced == true AND earnings_declining == true",
-      "overrides_score": true,
-      "rationale": "A company cutting its dividend while earnings are declining signals cash flow stress and broken investment thesis."
     },
     {
       "id": "OVR-O4",

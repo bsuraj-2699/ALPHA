@@ -1,0 +1,1032 @@
+{
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\__init__.py": {
+    "mtime": 1777538916.8472092,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\buckets.py": {
+    "mtime": 1777810440.7047536,
+    "ast_hash": "54be8dc8a20f056c1484d3e845bfb64f",
+    "semantic_hash": "54be8dc8a20f056c1484d3e845bfb64f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\config.py": {
+    "mtime": 1777659324.9220629,
+    "ast_hash": "14cd689290c9e2736e1e6c447ac9d868",
+    "semantic_hash": "14cd689290c9e2736e1e6c447ac9d868"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\db.py": {
+    "mtime": 1777868536.9102328,
+    "ast_hash": "274f91c10f782aef2f290f8bbaff5ca9",
+    "semantic_hash": "274f91c10f782aef2f290f8bbaff5ca9"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\deps.py": {
+    "mtime": 1779103689.988488,
+    "ast_hash": "9a466bb797e97fd1cefd515d0e96a8e0",
+    "semantic_hash": "9a466bb797e97fd1cefd515d0e96a8e0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\events.py": {
+    "mtime": 1777538916.90055,
+    "ast_hash": "763daf2875f7ac9bb3800e3071486571",
+    "semantic_hash": "763daf2875f7ac9bb3800e3071486571"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\idempotency.py": {
+    "mtime": 1777870457.9690251,
+    "ast_hash": "b446478686b25865c1c1180cf804cf01",
+    "semantic_hash": "b446478686b25865c1c1180cf804cf01"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\main.py": {
+    "mtime": 1779103689.9864893,
+    "ast_hash": "a7d83c31126a04641f9258d331a36322",
+    "semantic_hash": "a7d83c31126a04641f9258d331a36322"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\models.py": {
+    "mtime": 1779103689.9684873,
+    "ast_hash": "06549b6ac7a329031988c5f00543625e",
+    "semantic_hash": "06549b6ac7a329031988c5f00543625e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\retrigger.py": {
+    "mtime": 1777540044.31643,
+    "ast_hash": "a8010b68740642487f8a490d757c8e7b",
+    "semantic_hash": "a8010b68740642487f8a490d757c8e7b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\__init__.py": {
+    "mtime": 1777538916.842212,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\analyze.py": {
+    "mtime": 1777870466.7671013,
+    "ast_hash": "856cfd09f182733a00c2f175764cc528",
+    "semantic_hash": "856cfd09f182733a00c2f175764cc528"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\buckets.py": {
+    "mtime": 1777810497.3860013,
+    "ast_hash": "6cc7c41683163de684306aa212a6c334",
+    "semantic_hash": "6cc7c41683163de684306aa212a6c334"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\health.py": {
+    "mtime": 1777538916.86521,
+    "ast_hash": "57b2578de663d179493dbb7366275b8a",
+    "semantic_hash": "57b2578de663d179493dbb7366275b8a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\portfolio.py": {
+    "mtime": 1777538916.9745502,
+    "ast_hash": "4bd2affb7cf157c82645b737ad474cbe",
+    "semantic_hash": "4bd2affb7cf157c82645b737ad474cbe"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\price.py": {
+    "mtime": 1777869919.2035172,
+    "ast_hash": "e6cf17be0b592ebf561379f31f69dcaa",
+    "semantic_hash": "e6cf17be0b592ebf561379f31f69dcaa"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\runs.py": {
+    "mtime": 1779103689.9724922,
+    "ast_hash": "02e322cc06037d90c983f87b41f60bdc",
+    "semantic_hash": "02e322cc06037d90c983f87b41f60bdc"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\routes\\watchlist.py": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "100d80e3ee7db7efbdcc244113ed325e",
+    "semantic_hash": "100d80e3ee7db7efbdcc244113ed325e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\runs.py": {
+    "mtime": 1779103689.9684873,
+    "ast_hash": "d0eee0519610dfdef23a37614080fb36",
+    "semantic_hash": "d0eee0519610dfdef23a37614080fb36"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\scheduler.py": {
+    "mtime": 1777810556.1203806,
+    "ast_hash": "ab8a71acebb9e17a398472609ed374cc",
+    "semantic_hash": "ab8a71acebb9e17a398472609ed374cc"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\serializers.py": {
+    "mtime": 1777538916.9815476,
+    "ast_hash": "f4f8585ea26db182c2856fe798676ccb",
+    "semantic_hash": "f4f8585ea26db182c2856fe798676ccb"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\__init__.py": {
+    "mtime": 1777538916.8692107,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\conftest.py": {
+    "mtime": 1777538916.9525528,
+    "ast_hash": "9ddeb36ce0e98c4469ab3eebe1cd21e9",
+    "semantic_hash": "9ddeb36ce0e98c4469ab3eebe1cd21e9"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_analyze.py": {
+    "mtime": 1777870477.8978908,
+    "ast_hash": "63f1dac405d4566f98e5063ea8828c9c",
+    "semantic_hash": "63f1dac405d4566f98e5063ea8828c9c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_health.py": {
+    "mtime": 1777538916.867209,
+    "ast_hash": "033d6ec5af638e74fada960fb56b2601",
+    "semantic_hash": "033d6ec5af638e74fada960fb56b2601"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_idempotency_key.py": {
+    "mtime": 1777870474.8756387,
+    "ast_hash": "520b8bc8450154dac0a4b2a7d179e177",
+    "semantic_hash": "520b8bc8450154dac0a4b2a7d179e177"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_intraday_persistence.py": {
+    "mtime": 1777868540.9317634,
+    "ast_hash": "90933c7c3a8e669b8d1bb6742c7bada7",
+    "semantic_hash": "90933c7c3a8e669b8d1bb6742c7bada7"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_runs.py": {
+    "mtime": 1777538916.8772142,
+    "ast_hash": "931d3b29d9f39a3ed8131d824066c460",
+    "semantic_hash": "931d3b29d9f39a3ed8131d824066c460"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\api\\tests\\test_watchlist_portfolio.py": {
+    "mtime": 1777538916.9815476,
+    "ast_hash": "149b0087b2854383e3b7e5a4ee26eff0",
+    "semantic_hash": "149b0087b2854383e3b7e5a4ee26eff0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\analyze\\[ticker]\\page.tsx": {
+    "mtime": 1779103689.9864893,
+    "ast_hash": "262b5a31ea2be8aa77ce3c8c57ab1c14",
+    "semantic_hash": "262b5a31ea2be8aa77ce3c8c57ab1c14"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\analyze\\page.tsx": {
+    "mtime": 1779103689.9684873,
+    "ast_hash": "8f9de600848c02e8943b331720026847",
+    "semantic_hash": "8f9de600848c02e8943b331720026847"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\layout.tsx": {
+    "mtime": 1779103689.9684873,
+    "ast_hash": "f34b7a05d6b522b9d244b7a4f7cc7ab3",
+    "semantic_hash": "f34b7a05d6b522b9d244b7a4f7cc7ab3"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\not-found.tsx": {
+    "mtime": 1777538916.985549,
+    "ast_hash": "7084181158fe8a9f49149d791165159c",
+    "semantic_hash": "7084181158fe8a9f49149d791165159c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\page.tsx": {
+    "mtime": 1779103689.9694877,
+    "ast_hash": "43b50f905d67ac8e87ed5b2a479f51a1",
+    "semantic_hash": "43b50f905d67ac8e87ed5b2a479f51a1"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\portfolio\\page.tsx": {
+    "mtime": 1777538916.867209,
+    "ast_hash": "51f756abd4f74ed559c3eacba095b384",
+    "semantic_hash": "51f756abd4f74ed559c3eacba095b384"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\providers.tsx": {
+    "mtime": 1779103689.9834895,
+    "ast_hash": "a5d33724d7b2968faa6144d21404380b",
+    "semantic_hash": "a5d33724d7b2968faa6144d21404380b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\runs\\[id]\\page.tsx": {
+    "mtime": 1777538916.86521,
+    "ast_hash": "1e861ed87194a3fe09f2d7655a92ade8",
+    "semantic_hash": "1e861ed87194a3fe09f2d7655a92ade8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\runs\\page.tsx": {
+    "mtime": 1779103689.9864893,
+    "ast_hash": "fdc0f3923dbe8d8dfe51da3602e7ee95",
+    "semantic_hash": "fdc0f3923dbe8d8dfe51da3602e7ee95"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\app\\watchlist\\page.tsx": {
+    "mtime": 1779103689.9764888,
+    "ast_hash": "e149a40f1c9a71d1052ce4430c5cfe61",
+    "semantic_hash": "e149a40f1c9a71d1052ce4430c5cfe61"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components.json": {
+    "mtime": 1777538916.86521,
+    "ast_hash": "d7585e02a72270ed07107cb3c3350c5f",
+    "semantic_hash": "d7585e02a72270ed07107cb3c3350c5f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\agent-row.tsx": {
+    "mtime": 1777538916.9085522,
+    "ast_hash": "266a044127e4ebd8d71a1e7a4d4c16e6",
+    "semantic_hash": "266a044127e4ebd8d71a1e7a4d4c16e6"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\analyze-view.tsx": {
+    "mtime": 1779103689.985489,
+    "ast_hash": "3b104f7d4af9ad0ee6d04a3794f71e54",
+    "semantic_hash": "3b104f7d4af9ad0ee6d04a3794f71e54"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\debate-panel.tsx": {
+    "mtime": 1777538916.8502102,
+    "ast_hash": "db948fb20c4d9b1be8329a7df56dc926",
+    "semantic_hash": "db948fb20c4d9b1be8329a7df56dc926"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\decision-card.tsx": {
+    "mtime": 1777538916.964557,
+    "ast_hash": "5875c55dc95e522eda3809aa91a0a89c",
+    "semantic_hash": "5875c55dc95e522eda3809aa91a0a89c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\override-banner.tsx": {
+    "mtime": 1777538916.8792162,
+    "ast_hash": "a5df9b2924168daae692eb4ebed14303",
+    "semantic_hash": "a5df9b2924168daae692eb4ebed14303"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\pillar-radar.tsx": {
+    "mtime": 1777538916.8995502,
+    "ast_hash": "8e9b7c756c7d84edf2cfb661bea8c3ca",
+    "semantic_hash": "8e9b7c756c7d84edf2cfb661bea8c3ca"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\price-chart.tsx": {
+    "mtime": 1779103689.9724922,
+    "ast_hash": "2439331cfc8af9842c13f7acc47eb1d6",
+    "semantic_hash": "2439331cfc8af9842c13f7acc47eb1d6"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\reasoning-stream.tsx": {
+    "mtime": 1777538916.8965569,
+    "ast_hash": "92518f9fe72bd149a4f4c566a8f9f80d",
+    "semantic_hash": "92518f9fe72bd149a4f4c566a8f9f80d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\recent-list.tsx": {
+    "mtime": 1777538916.9305494,
+    "ast_hash": "cc7dcb3037febdc75506c59bb4ec6ba5",
+    "semantic_hash": "cc7dcb3037febdc75506c59bb4ec6ba5"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\analyze\\ticker-form.tsx": {
+    "mtime": 1779103689.9674883,
+    "ast_hash": "aa360e4de13f634badf400d8d773d17b",
+    "semantic_hash": "aa360e4de13f634badf400d8d773d17b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\animated-number.tsx": {
+    "mtime": 1777538916.867209,
+    "ast_hash": "f89d0ee8e9ce4b023077187b5fff5b93",
+    "semantic_hash": "f89d0ee8e9ce4b023077187b5fff5b93"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\copy-button.tsx": {
+    "mtime": 1777538916.9835486,
+    "ast_hash": "b3c876ef5ca6794f639bd3749fc2d0d4",
+    "semantic_hash": "b3c876ef5ca6794f639bd3749fc2d0d4"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\empty-state.tsx": {
+    "mtime": 1777538916.9465513,
+    "ast_hash": "e98bef5ec3005d46c096f54339f73d21",
+    "semantic_hash": "e98bef5ec3005d46c096f54339f73d21"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\layout\\shell.tsx": {
+    "mtime": 1777869919.2035172,
+    "ast_hash": "8e79dfbc33fdb2ce24ffe0a20e0b11f7",
+    "semantic_hash": "8e79dfbc33fdb2ce24ffe0a20e0b11f7"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\layout\\sidebar.tsx": {
+    "mtime": 1777817629.3570914,
+    "ast_hash": "3245d686033c3627d8f068fdaedc4c9a",
+    "semantic_hash": "3245d686033c3627d8f068fdaedc4c9a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\page-header.tsx": {
+    "mtime": 1777538916.914551,
+    "ast_hash": "56f6fcfd7b83c58004d74a9b59cdff6b",
+    "semantic_hash": "56f6fcfd7b83c58004d74a9b59cdff6b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\agent-node.tsx": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "1178a085ebf3e8d96c025180264bac7b",
+    "semantic_hash": "1178a085ebf3e8d96c025180264bac7b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\animated-edge.tsx": {
+    "mtime": 1777538916.8995502,
+    "ast_hash": "0417da43edd671cb67cad31e0107b91a",
+    "semantic_hash": "0417da43edd671cb67cad31e0107b91a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\execution-dag.tsx": {
+    "mtime": 1777538916.86521,
+    "ast_hash": "512cf92af7676f77500b2fe6e81bcbcd",
+    "semantic_hash": "512cf92af7676f77500b2fe6e81bcbcd"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\runs-view.tsx": {
+    "mtime": 1777538916.964557,
+    "ast_hash": "0037b20e8f265fb3e990b02946ff8730",
+    "semantic_hash": "0037b20e8f265fb3e990b02946ff8730"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\strategy-runs-view.tsx": {
+    "mtime": 1777810852.7782347,
+    "ast_hash": "36ddf78e4384371c440db787dc98326a",
+    "semantic_hash": "36ddf78e4384371c440db787dc98326a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\runs\\trace-timeline.tsx": {
+    "mtime": 1777538916.8995502,
+    "ast_hash": "a81be9e87d0d5b7067a32296a3d26ae0",
+    "semantic_hash": "a81be9e87d0d5b7067a32296a3d26ae0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\signal-badge.tsx": {
+    "mtime": 1777720642.790249,
+    "ast_hash": "ec8cf173ab120cf0b7008d34e38f69d3",
+    "semantic_hash": "ec8cf173ab120cf0b7008d34e38f69d3"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\strategy-buttons.tsx": {
+    "mtime": 1777720658.1809335,
+    "ast_hash": "1908ca106bb10f6532d026fec8988798",
+    "semantic_hash": "1908ca106bb10f6532d026fec8988798"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ticker-multi-select.tsx": {
+    "mtime": 1777720783.3385522,
+    "ast_hash": "c30d8e2d474535b538f7cf2d031b8d28",
+    "semantic_hash": "c30d8e2d474535b538f7cf2d031b8d28"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\badge.tsx": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "6547ea4861e391784fd79a0211a0a4d1",
+    "semantic_hash": "6547ea4861e391784fd79a0211a0a4d1"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\button.tsx": {
+    "mtime": 1777538916.924555,
+    "ast_hash": "60f7d490fa77ddf4231a1225030ad30f",
+    "semantic_hash": "60f7d490fa77ddf4231a1225030ad30f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\card.tsx": {
+    "mtime": 1777538916.9175494,
+    "ast_hash": "dc3fd5f3340f1ea526ca6f208114ca94",
+    "semantic_hash": "dc3fd5f3340f1ea526ca6f208114ca94"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\modal.tsx": {
+    "mtime": 1777720631.3005657,
+    "ast_hash": "6695560e0db6f26a85f49bc5fc0b1f8a",
+    "semantic_hash": "6695560e0db6f26a85f49bc5fc0b1f8a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\progress.tsx": {
+    "mtime": 1777538916.9425569,
+    "ast_hash": "1fed11fb0c3bc6ee5228eaded471d576",
+    "semantic_hash": "1fed11fb0c3bc6ee5228eaded471d576"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\separator.tsx": {
+    "mtime": 1777538916.8995502,
+    "ast_hash": "9b9ef5012f8f64fecffc189281bb5146",
+    "semantic_hash": "9b9ef5012f8f64fecffc189281bb5146"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\skeleton.tsx": {
+    "mtime": 1777538916.85421,
+    "ast_hash": "e5f9a42f3d21c6c5dfe53c80aa695c14",
+    "semantic_hash": "e5f9a42f3d21c6c5dfe53c80aa695c14"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\ui\\toast.tsx": {
+    "mtime": 1777720612.1189435,
+    "ast_hash": "4629022836dc1e14f7ceaa00cd672445",
+    "semantic_hash": "4629022836dc1e14f7ceaa00cd672445"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\watchlist-button.tsx": {
+    "mtime": 1777720801.7601743,
+    "ast_hash": "d68fbe0bcacba766ae1b68e638ef4f46",
+    "semantic_hash": "d68fbe0bcacba766ae1b68e638ef4f46"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\components\\watchlist\\watchlist-view.tsx": {
+    "mtime": 1777721002.711259,
+    "ast_hash": "2cf793a98986b9338529bb4b4609e888",
+    "semantic_hash": "2cf793a98986b9338529bb4b4609e888"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\agents.ts": {
+    "mtime": 1777538916.8412116,
+    "ast_hash": "fefff3e8146104a9f8eab3af87dfd13d",
+    "semantic_hash": "fefff3e8146104a9f8eab3af87dfd13d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\api.ts": {
+    "mtime": 1779103689.973492,
+    "ast_hash": "6eb5fed0b23c6048d3a1a7d1ddaa581a",
+    "semantic_hash": "6eb5fed0b23c6048d3a1a7d1ddaa581a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\fonts.ts": {
+    "mtime": 1777538916.8782172,
+    "ast_hash": "c99aedc5c4af2a19d54952b67e7e39f8",
+    "semantic_hash": "c99aedc5c4af2a19d54952b67e7e39f8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\format.ts": {
+    "mtime": 1777538916.9765537,
+    "ast_hash": "cee22b2de59ec39365a3b43b4ccac579",
+    "semantic_hash": "cee22b2de59ec39365a3b43b4ccac579"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\market-hours.ts": {
+    "mtime": 1777538916.9045541,
+    "ast_hash": "f8fcf054b02ed0fbb250ad3c12a91593",
+    "semantic_hash": "f8fcf054b02ed0fbb250ad3c12a91593"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\queries.ts": {
+    "mtime": 1779103689.9744883,
+    "ast_hash": "cd8c5f2eb0f4065293e1d4ac3ef09391",
+    "semantic_hash": "cd8c5f2eb0f4065293e1d4ac3ef09391"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\run-queue.ts": {
+    "mtime": 1777810814.4173262,
+    "ast_hash": "b955519f80f9ebc2fc04e0506ef733b2",
+    "semantic_hash": "b955519f80f9ebc2fc04e0506ef733b2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\run-stream.ts": {
+    "mtime": 1777869518.4889781,
+    "ast_hash": "b5995a21b7b12897f5fbf7679d1bc22d",
+    "semantic_hash": "b5995a21b7b12897f5fbf7679d1bc22d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\store.ts": {
+    "mtime": 1777538916.959553,
+    "ast_hash": "18dc69617abc365c225b1805e274406e",
+    "semantic_hash": "18dc69617abc365c225b1805e274406e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\strategy-store.ts": {
+    "mtime": 1777810733.8840613,
+    "ast_hash": "35fb7a0f7be1be64929163411f9221f3",
+    "semantic_hash": "35fb7a0f7be1be64929163411f9221f3"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\strategy.ts": {
+    "mtime": 1777810838.693796,
+    "ast_hash": "fdf8deb1dad25afbba100d998a800122",
+    "semantic_hash": "fdf8deb1dad25afbba100d998a800122"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\tickers.ts": {
+    "mtime": 1777720560.3479855,
+    "ast_hash": "0c195735a55aa0b2e95c32bed64a2151",
+    "semantic_hash": "0c195735a55aa0b2e95c32bed64a2151"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\use-count-up.ts": {
+    "mtime": 1777538916.8762147,
+    "ast_hash": "e51d39ad6189d560defaf10755154057",
+    "semantic_hash": "e51d39ad6189d560defaf10755154057"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\utils.ts": {
+    "mtime": 1777538916.959553,
+    "ast_hash": "1079fe4f6eb10003602b5819c9bbec4f",
+    "semantic_hash": "1079fe4f6eb10003602b5819c9bbec4f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\lib\\watchlist-store.ts": {
+    "mtime": 1777720689.8777041,
+    "ast_hash": "44760395fe29a5c5877084f116101e66",
+    "semantic_hash": "44760395fe29a5c5877084f116101e66"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\next-env.d.ts": {
+    "mtime": 1777538916.954552,
+    "ast_hash": "ba64ff7d54714a8f64db89b1003207d8",
+    "semantic_hash": "ba64ff7d54714a8f64db89b1003207d8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\next.config.ts": {
+    "mtime": 1778662104.394061,
+    "ast_hash": "fd3f6208a162198a9b2bef613e8cc0a5",
+    "semantic_hash": "fd3f6208a162198a9b2bef613e8cc0a5"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\package.json": {
+    "mtime": 1777538916.8732088,
+    "ast_hash": "a4acd049da4b22fc00cecdc6816572b2",
+    "semantic_hash": "a4acd049da4b22fc00cecdc6816572b2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\postcss.config.mjs": {
+    "mtime": 1777538916.9255545,
+    "ast_hash": "63776d6f299babbe38923a930c4d0fb8",
+    "semantic_hash": "63776d6f299babbe38923a930c4d0fb8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\tsconfig.json": {
+    "mtime": 1777538916.9745502,
+    "ast_hash": "91a6abec1a59fa5513b05a3aa11404bb",
+    "semantic_hash": "91a6abec1a59fa5513b05a3aa11404bb"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\types\\api.ts": {
+    "mtime": 1779103689.9684873,
+    "ast_hash": "86aa4569f5617dcaa448922995dde053",
+    "semantic_hash": "86aa4569f5617dcaa448922995dde053"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\__init__.py": {
+    "mtime": 1777538916.8452103,
+    "ast_hash": "2e992498c5f6e0b280765e44da2dcc46",
+    "semantic_hash": "2e992498c5f6e0b280765e44da2dcc46"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\backtest.py": {
+    "mtime": 1778653714.1675992,
+    "ast_hash": "787c92850e8939198df0be1b1a810fcb",
+    "semantic_hash": "787c92850e8939198df0be1b1a810fcb"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\benchmarks.py": {
+    "mtime": 1777539410.566578,
+    "ast_hash": "ab166ea1be74e05aaf382e8efb7c1767",
+    "semantic_hash": "ab166ea1be74e05aaf382e8efb7c1767"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\historical_context.py": {
+    "mtime": 1777539439.744065,
+    "ast_hash": "e33d7ffe528d7aa6d3826b6d1b4d2486",
+    "semantic_hash": "e33d7ffe528d7aa6d3826b6d1b4d2486"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\metrics.py": {
+    "mtime": 1777538916.8452103,
+    "ast_hash": "22d83397c6a49773ac16d798ff4e18d8",
+    "semantic_hash": "22d83397c6a49773ac16d798ff4e18d8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\portfolio.py": {
+    "mtime": 1777538916.9255545,
+    "ast_hash": "9701fd9b6cb0a67ee753524d91787288",
+    "semantic_hash": "9701fd9b6cb0a67ee753524d91787288"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\reports.py": {
+    "mtime": 1777538916.9795477,
+    "ast_hash": "c073b7baa566217b03bd7c903a60344f",
+    "semantic_hash": "c073b7baa566217b03bd7c903a60344f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\runner.py": {
+    "mtime": 1778653714.0604985,
+    "ast_hash": "65686fff6d84af1b82c5915c45e1e1cc",
+    "semantic_hash": "65686fff6d84af1b82c5915c45e1e1cc"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\__init__.py": {
+    "mtime": 1777538916.9745502,
+    "ast_hash": "b5e0c3ace9cc7318a0ac30959cb825bf",
+    "semantic_hash": "b5e0c3ace9cc7318a0ac30959cb825bf"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\_factory.py": {
+    "mtime": 1777538916.9725506,
+    "ast_hash": "105ad560795e380eac238bee4d0dc1e0",
+    "semantic_hash": "105ad560795e380eac238bee4d0dc1e0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\aapl_2023_q1_earnings_beat.json": {
+    "mtime": 1777460915.0740492,
+    "ast_hash": "fdafd8ba5e38ad3be2def776bbc0d1c8",
+    "semantic_hash": "fdafd8ba5e38ad3be2def776bbc0d1c8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\all_pillars_aligned_strong_buy.json": {
+    "mtime": 1777460915.0750556,
+    "ast_hash": "49ae14b29305f189058f478987b530b4",
+    "semantic_hash": "49ae14b29305f189058f478987b530b4"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\bear_flag_breakdown.json": {
+    "mtime": 1777460915.0815735,
+    "ast_hash": "500bc93a622a8511e52700b2d640f905",
+    "semantic_hash": "500bc93a622a8511e52700b2d640f905"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\ge_2018_dividend_cut.json": {
+    "mtime": 1777460915.0862098,
+    "ast_hash": "3b5bf16c5fea9fa21df4a1c08f1aada4",
+    "semantic_hash": "3b5bf16c5fea9fa21df4a1c08f1aada4"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\guidance_withdrawn_panic.json": {
+    "mtime": 1777460915.0852087,
+    "ast_hash": "a5a3be597a69df6b0e320e37fec8d01b",
+    "semantic_hash": "a5a3be597a69df6b0e320e37fec8d01b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\kogi_defensive_steady.json": {
+    "mtime": 1777460915.087207,
+    "ast_hash": "5b3a339de81abef8be422b81efafdf2a",
+    "semantic_hash": "5b3a339de81abef8be422b81efafdf2a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\macro_recession_cyclical_pressure.json": {
+    "mtime": 1777460915.0902097,
+    "ast_hash": "8ee10472d3af9497d9dee93b3c725c45",
+    "semantic_hash": "8ee10472d3af9497d9dee93b3c725c45"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\meta_2022_ad_slowdown.json": {
+    "mtime": 1777460915.0800598,
+    "ast_hash": "89c88989c8dadeb883689c0945c7eef8",
+    "semantic_hash": "89c88989c8dadeb883689c0945c7eef8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\mixed_signals_offsetting.json": {
+    "mtime": 1777460915.0882049,
+    "ast_hash": "88e741651187d8960d3999e440073681",
+    "semantic_hash": "88e741651187d8960d3999e440073681"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\msft_2023_cloud_steady.json": {
+    "mtime": 1777460915.076058,
+    "ast_hash": "00b4d95911420aec2ba510d4c57a8d88",
+    "semantic_hash": "00b4d95911420aec2ba510d4c57a8d88"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\nvda_2023_ai_breakout.json": {
+    "mtime": 1777460915.0750556,
+    "ast_hash": "f9cd060a79d074b9471fb6b953385b25",
+    "semantic_hash": "f9cd060a79d074b9471fb6b953385b25"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\partial_data_technical_only.json": {
+    "mtime": 1777460915.0902097,
+    "ast_hash": "1903c5f49ad9f0d34a722578fc0aaee0",
+    "semantic_hash": "1903c5f49ad9f0d34a722578fc0aaee0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\peloton_2022_post_pandemic_collapse.json": {
+    "mtime": 1777460915.0790603,
+    "ast_hash": "8545c6fff81b97071cd7ebd391dd1f02",
+    "semantic_hash": "8545c6fff81b97071cd7ebd391dd1f02"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\runner.py": {
+    "mtime": 1778653705.8228972,
+    "ast_hash": "363318a3b7b4b0c0b52b9280ed5763da",
+    "semantic_hash": "363318a3b7b4b0c0b52b9280ed5763da"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\tech_golden_cross_breakout.json": {
+    "mtime": 1777460915.0780602,
+    "ast_hash": "54ffa53ec66a1beec3ad79ea5eb0dfc0",
+    "semantic_hash": "54ffa53ec66a1beec3ad79ea5eb0dfc0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\tsla_2024_delivery_miss.json": {
+    "mtime": 1777460915.0790603,
+    "ast_hash": "7e950d343d10f35aa9c0e041aad0eb13",
+    "semantic_hash": "7e950d343d10f35aa9c0e041aad0eb13"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\wirecard_fraud_signals.json": {
+    "mtime": 1777460915.083214,
+    "ast_hash": "023e829a7fe8ffc94d3f866d0b55ebe2",
+    "semantic_hash": "023e829a7fe8ffc94d3f866d0b55ebe2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\__init__.py": {
+    "mtime": 1777538916.8892117,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_benchmarks.py": {
+    "mtime": 1777539457.846219,
+    "ast_hash": "931a0552d98e5c8959ae891a6f1e8a9d",
+    "semantic_hash": "931a0552d98e5c8959ae891a6f1e8a9d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_metrics.py": {
+    "mtime": 1777538916.870215,
+    "ast_hash": "89dfd79b7375b71cc5fb244966f5ce4c",
+    "semantic_hash": "89dfd79b7375b71cc5fb244966f5ce4c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_portfolio.py": {
+    "mtime": 1777538916.9695506,
+    "ast_hash": "1e4b561913894fef746a7f15b6e9abb0",
+    "semantic_hash": "1e4b561913894fef746a7f15b6e9abb0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_reports.py": {
+    "mtime": 1777539491.6075785,
+    "ast_hash": "f6bfdda0a6a0974cc182bc67cdda1b39",
+    "semantic_hash": "f6bfdda0a6a0974cc182bc67cdda1b39"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_runner_smoke.py": {
+    "mtime": 1777539480.7079942,
+    "ast_hash": "78617db4d38f14c9bcaea15d31bb8b68",
+    "semantic_hash": "78617db4d38f14c9bcaea15d31bb8b68"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\tests\\test_scenarios.py": {
+    "mtime": 1777538916.9255545,
+    "ast_hash": "e77ecaa3c6788b904fa6427e3f55b60e",
+    "semantic_hash": "e77ecaa3c6788b904fa6427e3f55b60e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\__init__.py": {
+    "mtime": 1777289705.20994,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\_llm_helpers.py": {
+    "mtime": 1778653584.3391094,
+    "ast_hash": "41a0216aa2dd781abad3c86b3f21e7d2",
+    "semantic_hash": "41a0216aa2dd781abad3c86b3f21e7d2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\__init__.py": {
+    "mtime": 1777538916.9255545,
+    "ast_hash": "3120aae3dd212b0f4f4862ae3c5ef939",
+    "semantic_hash": "3120aae3dd212b0f4f4862ae3c5ef939"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\_base.py": {
+    "mtime": 1778653622.2273295,
+    "ast_hash": "6b1e714e8c804151ac970909e41869c8",
+    "semantic_hash": "6b1e714e8c804151ac970909e41869c8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\fundamental.py": {
+    "mtime": 1777538916.9825494,
+    "ast_hash": "712c469b3099602fc19435abbd8c7c4e",
+    "semantic_hash": "712c469b3099602fc19435abbd8c7c4e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\macro.py": {
+    "mtime": 1777538916.9565556,
+    "ast_hash": "5146ae32a7cc9ffec1099af51b6c009b",
+    "semantic_hash": "5146ae32a7cc9ffec1099af51b6c009b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\risk.py": {
+    "mtime": 1777538916.8792162,
+    "ast_hash": "4b87508002ee2a8fa722e3edb2dd0d0b",
+    "semantic_hash": "4b87508002ee2a8fa722e3edb2dd0d0b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\sentiment.py": {
+    "mtime": 1777538916.86521,
+    "ast_hash": "a9f749a4d7d72784857f1d77b7ba36fc",
+    "semantic_hash": "a9f749a4d7d72784857f1d77b7ba36fc"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\technical.py": {
+    "mtime": 1777538916.924555,
+    "ast_hash": "a0b743ae2c803bdbe00ce38ec780f50a",
+    "semantic_hash": "a0b743ae2c803bdbe00ce38ec780f50a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\__init__.py": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\conftest.py": {
+    "mtime": 1778653661.834563,
+    "ast_hash": "9c16266665e08a03421dbfebf6ba3f7a",
+    "semantic_hash": "9c16266665e08a03421dbfebf6ba3f7a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\test_fundamental.py": {
+    "mtime": 1778653693.9692066,
+    "ast_hash": "280391135b010f13a79d98920b338f9a",
+    "semantic_hash": "280391135b010f13a79d98920b338f9a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\test_macro.py": {
+    "mtime": 1778653673.2647038,
+    "ast_hash": "54823ddd6ef396581434125e82aee248",
+    "semantic_hash": "54823ddd6ef396581434125e82aee248"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\test_risk.py": {
+    "mtime": 1778653689.9242368,
+    "ast_hash": "520a16f9e5f5aa53f20d4f712654209b",
+    "semantic_hash": "520a16f9e5f5aa53f20d4f712654209b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\test_sentiment.py": {
+    "mtime": 1778653683.1095085,
+    "ast_hash": "d9550daeeefb26d15b3e64a1e5a97605",
+    "semantic_hash": "d9550daeeefb26d15b3e64a1e5a97605"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\analysts\\tests\\test_technical.py": {
+    "mtime": 1778653695.529132,
+    "ast_hash": "9fee169883481dc4f2fc40737c9f8f19",
+    "semantic_hash": "9fee169883481dc4f2fc40737c9f8f19"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\debate.py": {
+    "mtime": 1778653624.6136155,
+    "ast_hash": "c6add8a5fefa46f6528ebfaf740d337c",
+    "semantic_hash": "c6add8a5fefa46f6528ebfaf740d337c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\decision.py": {
+    "mtime": 1777538916.9835486,
+    "ast_hash": "de4b12264c696182ac0f0f53a3d9c198",
+    "semantic_hash": "de4b12264c696182ac0f0f53a3d9c198"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\judge.py": {
+    "mtime": 1779103689.987493,
+    "ast_hash": "cbceef69becea6ce462c6247ead23e2c",
+    "semantic_hash": "cbceef69becea6ce462c6247ead23e2c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\llm_provider.py": {
+    "mtime": 1778653558.0627654,
+    "ast_hash": "f7c99357437acb34b75d08cb1eab7cbd",
+    "semantic_hash": "f7c99357437acb34b75d08cb1eab7cbd"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\orchestrator.py": {
+    "mtime": 1779103689.971491,
+    "ast_hash": "7462ef4df2b77e09e37a49f783e7384a",
+    "semantic_hash": "7462ef4df2b77e09e37a49f783e7384a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\state.py": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "5bac71de6c31caa7b11b42c787ed2821",
+    "semantic_hash": "5bac71de6c31caa7b11b42c787ed2821"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\tests\\__init__.py": {
+    "mtime": 1777538916.9455507,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\tests\\conftest.py": {
+    "mtime": 1777658531.1091287,
+    "ast_hash": "f6f2d08da6c97a41d26513cac226a2f3",
+    "semantic_hash": "f6f2d08da6c97a41d26513cac226a2f3"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\tests\\test_orchestrator_e2e.py": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "1f1248cac8f47ace995b4ee347dc490d",
+    "semantic_hash": "1f1248cac8f47ace995b4ee347dc490d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\core\\rule_evaluator.py": {
+    "mtime": 1779103689.987493,
+    "ast_hash": "d4126950005ca7d34b3f5810a0f56d8c",
+    "semantic_hash": "d4126950005ca7d34b3f5810a0f56d8c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\core\\rules.json": {
+    "mtime": 1777811088.3033037,
+    "ast_hash": "c10c0cddc4234a37cbb96c94e063a813",
+    "semantic_hash": "c10c0cddc4234a37cbb96c94e063a813"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\core\\test_evaluator.py": {
+    "mtime": 1777289757.0254722,
+    "ast_hash": "e685d50a4918a9e2321a666202102e2f",
+    "semantic_hash": "e685d50a4918a9e2321a666202102e2f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\__init__.py": {
+    "mtime": 1777289675.4788296,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\context_builder.py": {
+    "mtime": 1777888296.4663997,
+    "ast_hash": "e821b80b315ae804849216e80a9a2832",
+    "semantic_hash": "e821b80b315ae804849216e80a9a2832"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\__init__.py": {
+    "mtime": 1777289678.0259674,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\base.py": {
+    "mtime": 1777468289.516368,
+    "ast_hash": "62dd498367c7da083ce7c70a3a8a4496",
+    "semantic_hash": "62dd498367c7da083ce7c70a3a8a4496"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\cache.py": {
+    "mtime": 1777290068.3110986,
+    "ast_hash": "1ef735dcb6743f84d9d3a81fbe724294",
+    "semantic_hash": "1ef735dcb6743f84d9d3a81fbe724294"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\gdelt.py": {
+    "mtime": 1778669233.6135905,
+    "ast_hash": "0fb8bbe528776d2e76cd16b0124b26e5",
+    "semantic_hash": "0fb8bbe528776d2e76cd16b0124b26e5"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\nse.py": {
+    "mtime": 1777467979.4832177,
+    "ast_hash": "d040a12d5b704fa73eb797c6e39113b8",
+    "semantic_hash": "d040a12d5b704fa73eb797c6e39113b8"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\rate_limit.py": {
+    "mtime": 1777290058.0663624,
+    "ast_hash": "88bdc11ddbfd9ba3d31f6d9b1cfd1098",
+    "semantic_hash": "88bdc11ddbfd9ba3d31f6d9b1cfd1098"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\screener.py": {
+    "mtime": 1777660065.215169,
+    "ast_hash": "db761c5e56d287affd17f4f5f010c4ee",
+    "semantic_hash": "db761c5e56d287affd17f4f5f010c4ee"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\technicals.py": {
+    "mtime": 1777888438.723147,
+    "ast_hash": "16a44f5e62c4dcba397994e4ca4ad724",
+    "semantic_hash": "16a44f5e62c4dcba397994e4ca4ad724"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\upstox.py": {
+    "mtime": 1779103689.973492,
+    "ast_hash": "a820f94e79819b855612fa491e06ee7a",
+    "semantic_hash": "a820f94e79819b855612fa491e06ee7a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\upstox_auth.py": {
+    "mtime": 1777467908.7404926,
+    "ast_hash": "330a3232f80cdca4eda342fb97c6cae9",
+    "semantic_hash": "330a3232f80cdca4eda342fb97c6cae9"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\upstox_ws.py": {
+    "mtime": 1777539994.9076607,
+    "ast_hash": "300c1a427e7893e9b8edcf7daa0228f0",
+    "semantic_hash": "300c1a427e7893e9b8edcf7daa0228f0"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\providers\\yahoo.py": {
+    "mtime": 1777817595.5702553,
+    "ast_hash": "6cab8ea911b20cdc9cbdd293380e6c7d",
+    "semantic_hash": "6cab8ea911b20cdc9cbdd293380e6c7d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\__init__.py": {
+    "mtime": 1777354228.184042,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\conftest.py": {
+    "mtime": 1777468236.312783,
+    "ast_hash": "e7f89714e2b321beaa963819cc9cfc05",
+    "semantic_hash": "e7f89714e2b321beaa963819cc9cfc05"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\test_coverage.py": {
+    "mtime": 1777468249.513758,
+    "ast_hash": "e69bb3d6af5a9f09291e452bebf851a4",
+    "semantic_hash": "e69bb3d6af5a9f09291e452bebf851a4"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\test_rate_limit.py": {
+    "mtime": 1777354278.6783695,
+    "ast_hash": "e6970c15852b3856a9b6e3b41c8fe724",
+    "semantic_hash": "e6970c15852b3856a9b6e3b41c8fe724"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\test_technicals_rsi_alias.py": {
+    "mtime": 1777888401.1871994,
+    "ast_hash": "2f99fb9d2e00e92d2af3168fac826623",
+    "semantic_hash": "2f99fb9d2e00e92d2af3168fac826623"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\data\\tests\\test_yahoo_integration.py": {
+    "mtime": 1777354257.5222816,
+    "ast_hash": "0f4b476584f008c91aa51ed8b6cc911b",
+    "semantic_hash": "0f4b476584f008c91aa51ed8b6cc911b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\__init__.py": {
+    "mtime": 1777289708.2442484,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\bm25.py": {
+    "mtime": 1777357430.5016067,
+    "ast_hash": "4289b03c4e6cad5ba8673e50bc8e1d3b",
+    "semantic_hash": "4289b03c4e6cad5ba8673e50bc8e1d3b"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\chunkers.py": {
+    "mtime": 1777357464.650528,
+    "ast_hash": "004610dd1d59fff3633f1a41cb81a822",
+    "semantic_hash": "004610dd1d59fff3633f1a41cb81a822"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\embeddings.py": {
+    "mtime": 1777357394.4247944,
+    "ast_hash": "27653050a889a14d2df79cc6af1ca283",
+    "semantic_hash": "27653050a889a14d2df79cc6af1ca283"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\ingest.py": {
+    "mtime": 1777357485.1645608,
+    "ast_hash": "c0d6792682655f795163454e483aaaa6",
+    "semantic_hash": "c0d6792682655f795163454e483aaaa6"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\retriever.py": {
+    "mtime": 1777357509.312006,
+    "ast_hash": "20d3bc9513cd30c80c467fc12b1d5a90",
+    "semantic_hash": "20d3bc9513cd30c80c467fc12b1d5a90"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\store.py": {
+    "mtime": 1777358216.6880262,
+    "ast_hash": "e58ed44b88664da99405da01f0de3fd2",
+    "semantic_hash": "e58ed44b88664da99405da01f0de3fd2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\tests\\__init__.py": {
+    "mtime": 1777357513.9383109,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\rag\\tests\\test_rules_retrieval.py": {
+    "mtime": 1777357540.414393,
+    "ast_hash": "fb4d3dbfbc47d484281a73aa382c6136",
+    "semantic_hash": "fb4d3dbfbc47d484281a73aa382c6136"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\shared\\__init__.py": {
+    "mtime": 1777289657.596396,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\shared\\config.py": {
+    "mtime": 1779103689.973492,
+    "ast_hash": "7adda42705e5bc680656f0fc6b1b913d",
+    "semantic_hash": "7adda42705e5bc680656f0fc6b1b913d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\shared\\observability.py": {
+    "mtime": 1777658245.7473936,
+    "ast_hash": "662629c86d0bda08252004ca1826d4fb",
+    "semantic_hash": "662629c86d0bda08252004ca1826d4fb"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\shared\\schemas.py": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "830841e82534994b9ab0429dce3131c4",
+    "semantic_hash": "830841e82534994b9ab0429dce3131c4"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\shared\\ticker_registry.py": {
+    "mtime": 1777712679.6029406,
+    "ast_hash": "b3be7a324be54cbbaf2e1bcfa71e0085",
+    "semantic_hash": "b3be7a324be54cbbaf2e1bcfa71e0085"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\scripts\\debug_context.py": {
+    "mtime": 1778654615.5156221,
+    "ast_hash": "cf50bfac08d4088a9a2f40fa65f7881a",
+    "semantic_hash": "cf50bfac08d4088a9a2f40fa65f7881a"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\scripts\\export_runs_to_excel.py": {
+    "mtime": 1777870484.9899535,
+    "ast_hash": "1585b74d11837ff69f3b20edec637506",
+    "semantic_hash": "1585b74d11837ff69f3b20edec637506"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\README.md": {
+    "mtime": 1778662603.7673028,
+    "ast_hash": "4df9a3c53f217c6a227d3849f38fb3e2",
+    "semantic_hash": "4df9a3c53f217c6a227d3849f38fb3e2"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\apps\\web\\README.md": {
+    "mtime": 1777869919.2035172,
+    "ast_hash": "bbe07af3874c2470ee9bf021afcf331f",
+    "semantic_hash": "bbe07af3874c2470ee9bf021afcf331f"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\README.md": {
+    "mtime": 1777539450.9581373,
+    "ast_hash": "5f6ebec1a758967deef37114778aa244",
+    "semantic_hash": "5f6ebec1a758967deef37114778aa244"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\eval\\scenarios\\README.md": {
+    "mtime": 1777538916.8412116,
+    "ast_hash": "00038bcd04a923c2552e8a3b8309fcd6",
+    "semantic_hash": "00038bcd04a923c2552e8a3b8309fcd6"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\infra\\docker-compose.yml": {
+    "mtime": 1777289654.490301,
+    "ast_hash": "b462c776121cf31fd32b1d9dcfb59a7d",
+    "semantic_hash": "b462c776121cf31fd32b1d9dcfb59a7d"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\prompts\\analyst_base.txt": {
+    "mtime": 1777538916.957553,
+    "ast_hash": "7dff1ee4fde8e78c9e63ed702bc3f9a7",
+    "semantic_hash": "7dff1ee4fde8e78c9e63ed702bc3f9a7"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\prompts\\debate_bear.txt": {
+    "mtime": 1777538916.8692107,
+    "ast_hash": "ad43538182b32b354cdec78759a25a7c",
+    "semantic_hash": "ad43538182b32b354cdec78759a25a7c"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\prompts\\debate_bull.txt": {
+    "mtime": 1777538916.9055521,
+    "ast_hash": "a5a94640262ca6161816d76418679a08",
+    "semantic_hash": "a5a94640262ca6161816d76418679a08"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\packages\\agents\\prompts\\judge.txt": {
+    "mtime": 1777538916.8902082,
+    "ast_hash": "25995634fddbdfeb495466715f66d631",
+    "semantic_hash": "25995634fddbdfeb495466715f66d631"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\render.yaml": {
+    "mtime": 1778663084.43947,
+    "ast_hash": "cbe0010878ec72892530a17fbba05633",
+    "semantic_hash": "cbe0010878ec72892530a17fbba05633"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\reports\\aapl_q1_2024_smoke.html": {
+    "mtime": 1777460998.1448922,
+    "ast_hash": "0c6a2e220c2b8411bde36147bfc5a423",
+    "semantic_hash": "0c6a2e220c2b8411bde36147bfc5a423"
+  },
+  "C:\\Users\\suraj\\Desktop\\fin-agent\\reports\\us_tech_2023.html": {
+    "mtime": 1777461020.8405738,
+    "ast_hash": "03052e8fcb279997e970152bcc1c8bc3",
+    "semantic_hash": "03052e8fcb279997e970152bcc1c8bc3"
+  }
+}

@@ -80,7 +80,9 @@ class GDELTProvider:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 resp = await client.get(_BASE, params=params)
         except (httpx.HTTPError, OSError) as e:
-            logger.warning("gdelt failed: %s", e)
+            # str() on httpx timeout errors is often empty, which produced the
+            # useless log line "gdelt failed: ". Always name the type.
+            logger.warning("gdelt failed: %s: %s", type(e).__name__, e)
             # Neutral fallback so sentiment rules don't all skip.
             return {
                 "news_sentiment_14d_avg": 0.0,

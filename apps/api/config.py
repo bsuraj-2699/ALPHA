@@ -19,9 +19,10 @@ class Settings:
     redis_url: str = ""  # redis://host:6379/0
     qdrant_url: str = ""  # http://host:6333
 
-    # Orchestrator behavior
+    # Orchestrator behavior. ``chat_model`` is only the offline fallback id;
+    # when an API key is set the provider layer uses LLM_MODEL / LLM_FALLBACK_MODEL.
     auto_approve_strong_signals: bool = False
-    openai_model: str = "gpt-4o"
+    chat_model: str = "meta/llama-3.3-70b-instruct"
 
     # Idempotency window: dedupe duplicate POSTs within this many hours.
     idempotency_ttl_hours: int = 24
@@ -61,7 +62,7 @@ def load_settings() -> Settings:
         auto_approve_strong_signals=_env_bool(
             "AUTO_APPROVE_STRONG_SIGNALS", False
         ),
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+        chat_model=os.getenv("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
         idempotency_ttl_hours=_env_int("IDEMPOTENCY_TTL_HOURS", 24),
         sse_keepalive_seconds=_env_int("SSE_KEEPALIVE_SECONDS", 15),
         allow_origins=os.getenv(

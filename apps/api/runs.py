@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from packages.agents.orchestrator import Orchestrator
+from packages.agents.orchestrator import _PILLAR_TO_STATE_KEY, Orchestrator
 from packages.shared.config import get_mode_config
 from packages.shared.observability import (
     TokenLedger,
@@ -59,6 +59,14 @@ def _canonical_ticker(ticker: str) -> str:
 # Actionable intraday outcomes also persist a dedicated ``intraday_signals`` row.
 _INTRADAY_PERSIST_SIGNALS = frozenset({"BUY", "STRONG_BUY", "SELL", "STRONG_SELL"})
 
+# Hard ceiling on Stage-2 narration. If the LLM stack stalls, we keep the fast
+# deterministic decision and finalize rather than leaving the run "running".
+# Whole-of-Stage-2 budget: analysts (1 wave at LLM_MAX_CONCURRENCY >= 5),
+# then debate, then judge = 3 sequential waves. Blowing it is not a correctness
+# problem: the deterministic decision is already emitted, and enrichment
+# degrades to templated prose.
+_ENRICH_TIMEOUT_S = 120.0
+
 
 @dataclass
 class RunRecord:
@@ -79,6 +87,11 @@ class RunRecord:
     task: asyncio.Task[Any] | None = field(default=None, repr=False)
     ledger: TokenLedger | None = field(default=None, repr=False)
     started_perf: float = field(default=0.0, repr=False)
+    # Two-stage (Phase 11) internals: TTD milestone + stashed deterministic
+    # decision awaiting human approval.
+    decision_ready_perf: float = field(default=0.0, repr=False)
+    ttd_ms: float | None = field(default=None, repr=False)
+    pending_fast: Any | None = field(default=None, repr=False)
 
 
 def _parse_decision_timestamp(
@@ -261,22 +274,65 @@ class RunManager:
         rec: RunRecord,
         portfolio_context: dict[str, Any] | None,
     ) -> None:
+        """Two-stage execution (Phase 11).
+
+        Stage 1 (critical path): ``arun_fast`` produces the deterministic
+        decision and emits it immediately — this is the Time-To-Decision the
+        client waits for. Stage 2 (enrichment) runs the LLM narration AFTER
+        the decision is already available, so narration never blocks TTD.
+        """
         rec.status = "running"
         ledger_token: Token[TokenLedger | None] = set_token_ledger(rec.ledger)
         try:
-            state = await self._orch.arun(
-                query=f"Analyze {rec.ticker}",
-                thread_id=rec.run_id,
+            fast = await self._orch.arun_fast(
                 ticker=rec.ticker,
                 market=rec.market,  # type: ignore[arg-type]
+                mode=rec.mode,  # type: ignore[arg-type]
                 context_overrides=portfolio_context,
                 event_publisher=self._bus.publish,
-                mode=rec.mode,  # type: ignore[arg-type]
+                thread_id=rec.run_id,
             )
-            await self._handle_terminal(rec, state)
+            rec.decision_ready_perf = time.perf_counter()
+            rec.ttd_ms = int((rec.decision_ready_perf - rec.started_perf) * 1000)
+            rec.state = self._fast_state(fast)
+
+            # Actionable intraday outcomes become durable at TTD, not after
+            # narration — so the signal is persisted the instant it exists.
+            await self._persist_intraday(rec)
+
+            # Human-in-the-loop gate on STRONG signals (deterministic).
+            needs_review = (
+                fast.decision.requires_human_review
+                and not getattr(self._orch, "auto_approve_strong_signals", True)
+            )
+            if needs_review:
+                rec.pending_fast = fast
+                rec.status = "interrupted"
+                rec.interrupt = {
+                    "type": "human_review_required",
+                    "ticker": rec.ticker,
+                    "market": rec.market,
+                    "signal": fast.decision.signal,
+                    "confidence": fast.decision.confidence,
+                    "position_size_pct": fast.decision.position_size_pct,
+                    "prompt": (
+                        f"{fast.decision.signal} for {rec.ticker} at confidence "
+                        f"{fast.decision.confidence:.1f}/100. Reply 'approve' to "
+                        f"finalize or any other text to downgrade to HOLD."
+                    ),
+                }
+                await self._bus.publish(
+                    rec.run_id, "interrupted", {"interrupt": rec.interrupt}
+                )
+                await self._log_terminal(rec)
+                return
+
+            # Stage 2 — enrichment (non-blocking relative to TTD).
+            await self._enrich_and_finalize(rec, fast)
         except asyncio.CancelledError:
             rec.status = "error"
             rec.error = "cancelled"
+            rec.completed_at = datetime.now(timezone.utc)
             await self._log_terminal(rec)
             raise
         except Exception as e:
@@ -291,14 +347,42 @@ class RunManager:
             await self._bus.publish(rec.run_id, "_terminal_", {})
 
     async def _resume(self, rec: RunRecord, response: str) -> None:
+        """Finalize a human-reviewed run against the stashed fast decision.
+
+        No graph replay needed — the decision is already deterministic.
+        'approve' keeps it and enriches; anything else downgrades to HOLD.
+        """
         ledger_token: Token[TokenLedger | None] = set_token_ledger(rec.ledger)
         try:
-            state = await self._orch.aresume(
-                rec.run_id,
-                response,
-                event_publisher=self._bus.publish,
-            )
-            await self._handle_terminal(rec, state)
+            fast = rec.pending_fast
+            if fast is None:  # pragma: no cover - defensive
+                raise RuntimeError("no pending decision to resume")
+            if response.strip().lower() == "approve":
+                await self._enrich_and_finalize(rec, fast)
+            else:
+                held = fast.decision.model_copy(update={
+                    "signal": "HOLD",
+                    "position_size_pct": 0.0,
+                    "entry_price": None,
+                    "stop_loss": None,
+                    "target_price": None,
+                    "requires_human_review": False,
+                    "rationale": (
+                        "Human reviewer rejected the "
+                        f"{fast.decision.signal} recommendation; downgraded to HOLD. "
+                        f"Original rationale: {fast.decision.rationale}"
+                    ),
+                })
+                from dataclasses import replace as _replace
+
+                rec.state = self._fast_state(_replace(fast, decision=held))
+                rec.status = "complete"
+                rec.completed_at = datetime.now(timezone.utc)
+                await self._bus.publish(
+                    rec.run_id, "decision", held.model_dump(mode="json")
+                )
+                await self._log_terminal(rec)
+            rec.pending_fast = None
         except Exception as e:
             logger.exception("Run %s resume failed", rec.run_id)
             rec.status = "error"
@@ -310,9 +394,85 @@ class RunManager:
             reset_token_ledger(ledger_token)
             await self._bus.publish(rec.run_id, "_terminal_", {})
 
+    async def _enrich_and_finalize(self, rec: RunRecord, fast: Any) -> None:
+        """Stage 2: run narration (best-effort) then finalize the run.
+
+        Enrichment failure never loses the decision — we keep the fast
+        decision and complete the run regardless.
+        """
+        try:
+            result = await asyncio.wait_for(
+                self._orch.arun_enrich(fast, event_publisher=self._bus.publish),
+                timeout=_ENRICH_TIMEOUT_S,
+            )
+            # Build the raw state (model objects), overlay the enrichment
+            # artefacts, and serialize ONCE — so the per-pillar analyst reports
+            # (each carrying that agent's confidence) get folded into
+            # ``analyst_reports`` by serialize_state. Doing this after
+            # serialization would silently drop them (Bug: missing agent
+            # confidence in the two-stage flow).
+            raw = self._fast_state_raw(fast)
+            raw["decision"] = result["decision"]
+            if result.get("bull_case") is not None:
+                raw["bull_case"] = result["bull_case"]
+            if result.get("bear_case") is not None:
+                raw["bear_case"] = result["bear_case"]
+            for rep in result.get("reports", []) or []:
+                key = _PILLAR_TO_STATE_KEY.get(getattr(rep, "pillar", ""))
+                if key:
+                    raw[key] = rep
+            rec.state = serialize_state(raw)
+        except Exception:  # pragma: no cover - narration is best-effort
+            logger.exception("Run %s enrichment failed; keeping fast decision", rec.run_id)
+        rec.status = "complete"
+        rec.completed_at = datetime.now(timezone.utc)
+        await self._log_terminal(rec)
+
+    def _fast_state_raw(self, fast: Any) -> dict[str, Any]:
+        """AgentState-shaped dict of model objects (pre-serialization)."""
+        return {
+            "ticker": fast.decision.ticker,
+            "market": fast.decision.market,
+            "context": fast.context,
+            "evaluation": fast.evaluation,
+            "judgment": fast.judgment,
+            "decision": fast.decision,
+            "historical_memories": (fast.historical or {}).get("cases", []),
+            "historical_evidence": fast.historical or {},
+            "reasoning_trace": [],
+        }
+
+    def _fast_state(self, fast: Any) -> dict[str, Any]:
+        """Serialize a FastDecision into the AgentState response shape."""
+        return serialize_state(self._fast_state_raw(fast))
+
+    async def _persist_intraday(self, rec: RunRecord) -> None:
+        insert_intraday = getattr(self._log, "insert_intraday_signal", None)
+        decision = (rec.state or {}).get("decision") or {}
+        if (
+            insert_intraday is not None
+            and rec.mode == "intraday"
+            and decision.get("signal") in _INTRADAY_PERSIST_SIGNALS
+        ):
+            row = _intraday_signal_row(rec)
+            if row is not None:
+                try:
+                    await insert_intraday(row)
+                except Exception:  # pragma: no cover
+                    logger.exception(
+                        "Failed to insert intraday_signals row for %s", rec.run_id
+                    )
+
     async def _handle_terminal(
         self, rec: RunRecord, state: dict[str, Any]
     ) -> None:
+        """Finalize a run from a full state dict (graph/legacy path + the
+        persistence entry point exercised by the intraday-persistence tests).
+
+        The two-stage :meth:`_execute` finalizes via ``_enrich_and_finalize``
+        instead, but this remains the canonical "serialize state + classify
+        status + persist" step and is kept working verbatim.
+        """
         rec.completed_at = datetime.now(timezone.utc)
         rec.state = serialize_state(state)
         interrupt_payload = extract_interrupt(state)

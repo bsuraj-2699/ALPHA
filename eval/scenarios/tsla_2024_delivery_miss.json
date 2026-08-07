@@ -5,8 +5,8 @@
   "ticker": "TSLA",
   "market": "US",
   "expected_signal": "SELL",
-  "expected_min_confidence": 25,
-  "expected_max_confidence": 45,
+  "expected_min_confidence": 45,
+  "expected_max_confidence": 85,
   "context": {
     "market": "US",
     "sector": "technology",
@@ -119,5 +119,6 @@
     "vix_level": 32.0,
     "vix_change_5d_pct": 22.0,
     "guidance_trend": "lowering"
-  }
+  },
+  "_confidence_note": "bounds recalibrated for direction-independent confidence (see packages/core/confidence.py)"
 }

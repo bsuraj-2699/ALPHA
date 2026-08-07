@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 
 _RULES_PATH = Path(__file__).resolve().parents[1] / "core" / "rules.json"
 
-DEFAULT_OPENAI_MODEL = "gpt-4o"
+DEFAULT_CHAT_MODEL = "meta/llama-3.3-70b-instruct"
 DEFAULT_MAX_TOKENS   = 4096
 
 PARSE_SYSTEM_PROMPT = """You parse a single user query about an Indian stock (NSE/BSE) into a strict JSON record.
@@ -177,13 +177,18 @@ class Orchestrator:
         judge: Judge | None = None,
         decision_agent: DecisionAgent | None = None,
         retriever: Any | None = None,
+        market_memory: Any | None = None,
         checkpointer: BaseCheckpointSaver | None = None,
         auto_approve_strong_signals: bool = True,
-        openai_model: str = DEFAULT_OPENAI_MODEL,
+        chat_model: str = DEFAULT_CHAT_MODEL,
         max_tokens:   int = DEFAULT_MAX_TOKENS,
     ) -> None:
         self._context_builder = context_builder
         self._evaluator       = evaluator or RuleEvaluator(_RULES_PATH)
+        # Intraday RAG market-memory (optional). When present, similar
+        # historical market fingerprints inform confidence + explanation.
+        # It NEVER changes the deterministic signal.
+        self._market_memory = market_memory
 
         self._analysts: dict[Pillar, BaseAnalyst] = (
             analysts if analysts is not None else self._build_default_analysts()
@@ -198,7 +203,7 @@ class Orchestrator:
         self._decision_agent = decision_agent or DecisionAgent()
 
         self.auto_approve_strong_signals = auto_approve_strong_signals
-        self.openai_model = openai_model
+        self.chat_model = chat_model
         self.max_tokens   = max_tokens
 
         self._checkpointer = checkpointer or MemorySaver()
@@ -298,6 +303,224 @@ class Orchestrator:
         result_dict["_thread_id"] = thread_id
         return result_dict  # type: ignore[return-value]
 
+    # ----- critical path (deterministic, LLM-free) --------------------------
+
+    async def arun_fast(
+        self,
+        *,
+        ticker: str | None = None,
+        market: Market = "IN",
+        mode: Mode = DEFAULT_MODE,
+        query: str | None = None,
+        context_overrides: dict[str, Any] | None = None,
+        event_publisher: EventPublisher | None = None,
+        thread_id: str | None = None,
+    ) -> "FastDecision":
+        """Time-To-Decision critical path — everything needed to emit a
+        deterministic BUY/SELL/HOLD, and nothing else.
+
+        Stages (all blocking, all deterministic): market data → context build
+        → historical market-memory recall (intraday) → rule evaluation →
+        confidence → position sizing / risk → final Decision. Emits the
+        ``decision`` event immediately. The LLM narrative is NOT produced here
+        — callers run :meth:`arun_enrich` afterwards (off the critical path).
+        """
+        thread_id = thread_id or uuid.uuid4().hex
+        tokens = set_run_context(thread_id, event_publisher)
+        t0 = time.perf_counter()
+        try:
+            # 1. ticker (parse only if the caller didn't preset one)
+            if not ticker:
+                parsed = await self._parse_query(query or "")
+                ticker, market = parsed.ticker, parsed.market
+
+            # 2. context build (market data collection)
+            try:
+                mode_config: ModeConfig | None = get_mode_config(mode)
+            except ValueError:
+                mode_config = None
+            builder = self._context_builder or _build_default_builder(
+                market, mode_config, evaluator=self._evaluator
+            )
+            try:
+                ctx = _sanitize_for_checkpoint(await builder.build(ticker, market))
+            finally:
+                # A builder we created owns its providers' network sessions;
+                # an injected one is the caller's to manage.
+                if self._context_builder is None:
+                    await builder.aclose()
+            if context_overrides:
+                ctx = {**ctx, **_sanitize_for_checkpoint(dict(context_overrides))}
+
+            # 3. historical market-memory recall (intraday only)
+            historical: dict[str, Any] = {}
+            if mode == "intraday" and self._market_memory is not None:
+                try:
+                    historical = await asyncio.to_thread(
+                        self._market_memory.retrieve_evidence, ctx, ticker
+                    )
+                except Exception as e:
+                    logger.warning("market-memory recall failed: %s", e)
+
+            # 4. rule engine (deterministic scoring + overrides)
+            try:
+                category_weights = get_mode_config(mode).category_weights()
+            except ValueError:
+                category_weights = None
+            evaluation = self._evaluator.evaluate(
+                ticker, market, ctx, category_weights=category_weights, mode=mode
+            )
+
+            # 5. deterministic judgment (NO LLM — templated rule summary)
+            overrides_active = [
+                o.override_id for o in evaluation.overrides_triggered if o.triggered
+            ]
+            cited = _top_cited_rule_ids(evaluation)
+            judgment = Judgment(
+                signal=evaluation.final_signal_after_overrides,
+                composite_score=evaluation.composite_score,
+                overrides_active=overrides_active,
+                cited_rule_ids=cited,
+                narrative=_deterministic_rationale(ticker, market, evaluation, historical),
+            )
+
+            # 6. confidence + position sizing + risk → final Decision
+            decision = self._decision_agent.build(
+                ticker=ticker, market=market, judgment=judgment, context=ctx,
+                data_coverage_pct=evaluation.data_coverage_pct, mode=mode,
+                evaluation=evaluation,
+                historical_success=historical.get("success_rate"),
+                historical_similarity=historical.get("mean_similarity"),
+                n_historical=int(historical.get("n") or 0),
+            )
+
+            ttd_ms = (time.perf_counter() - t0) * 1000.0
+            try:
+                await publish_event("decision", decision.model_dump(mode="json"))
+                await publish_event(
+                    "decision_ready",
+                    {"ttd_ms": round(ttd_ms, 1), "signal": decision.signal,
+                     "confidence": decision.confidence,
+                     "historical_n": int(historical.get("n") or 0)},
+                )
+            except Exception:  # pragma: no cover - event bus best-effort
+                pass
+
+            return FastDecision(
+                decision=decision, evaluation=evaluation, context=ctx,
+                historical=historical, judgment=judgment, thread_id=thread_id,
+                ttd_ms=ttd_ms,
+            )
+        finally:
+            reset_run_context(tokens)
+
+    # ----- background enrichment (non-blocking narration) -------------------
+
+    async def arun_enrich(
+        self,
+        fast: "FastDecision",
+        *,
+        event_publisher: EventPublisher | None = None,
+    ) -> dict[str, Any]:
+        """Off-critical-path narration: analysts -> debate -> judge prose.
+
+        Runs AFTER the decision has been returned. Reuses the already-built
+        context and evaluation, so no market data is refetched. It NEVER
+        changes the signal/score/sizing — it only replaces the templated
+        rationale with richer prose and returns the analyst/debate artefacts.
+        Offline-safe: with no LLM configured, every narrator falls back to a
+        templated narrative.
+        """
+        tokens = set_run_context(fast.thread_id or uuid.uuid4().hex, event_publisher)
+        try:
+            ctx = fast.context
+            ticker = fast.decision.ticker
+            market: Market = fast.decision.market
+            mode: Mode = fast.decision.mode
+
+            active = self._route_active_analysts({"mode": mode})  # type: ignore[arg-type]
+
+            async def _run_analyst(pillar: Pillar) -> AnalystReport | BaseException:
+                # Emit live start/complete events so the UI streams enrichment
+                # progress. Best-effort — event failures never abort narration.
+                try:
+                    await publish_event("agent_start", {"agent": str(pillar)})
+                except Exception:  # pragma: no cover
+                    pass
+                try:
+                    rep = await self._analysts[pillar].analyze(ctx, ticker, market)
+                except BaseException as exc:  # noqa: BLE001 - mirror gather semantics
+                    return exc
+                try:
+                    await publish_event("agent_complete", {
+                        "agent": str(pillar),
+                        "score": getattr(rep, "score", None),
+                        "narrative": getattr(rep, "narrative", None),
+                    })
+                except Exception:  # pragma: no cover
+                    pass
+                return rep
+
+            gathered = await asyncio.gather(
+                *(_run_analyst(p) for p in active), return_exceptions=True,
+            )
+            reports: list[AnalystReport] = [
+                r for r in gathered if isinstance(r, AnalystReport)
+            ]
+
+            bull = bear = None
+            if reports:
+                for _agent in ("debate", "judge"):
+                    try:
+                        await publish_event("agent_start", {"agent": _agent})
+                    except Exception:  # pragma: no cover
+                        pass
+                bull, bear = await asyncio.gather(
+                    self._bull.make_case(reports, ticker, market),
+                    self._bear.make_case(reports, ticker, market),
+                )
+                try:
+                    await publish_event("agent_complete", {"agent": "debate"})
+                except Exception:  # pragma: no cover
+                    pass
+
+            try:
+                category_weights = get_mode_config(mode).category_weights()
+            except ValueError:
+                category_weights = None
+            judgment, _evaluation = await self._judge.judge(
+                ticker=ticker, market=market, context=ctx,
+                bull_case=bull, bear_case=bear,
+                category_weights=category_weights, mode=mode,
+            )
+            try:
+                await publish_event("agent_complete", {"agent": "judge"})
+            except Exception:  # pragma: no cover
+                pass
+
+            # Determinism guard: narration must not move the signal.
+            narrative = judgment.narrative
+            enriched = fast.decision.model_copy(update={"rationale": narrative})
+
+            try:
+                await publish_event("analysis_complete", {
+                    "signal": enriched.signal,
+                    "narrative": narrative,
+                    "n_reports": len(reports),
+                })
+            except Exception:  # pragma: no cover
+                pass
+
+            return {
+                "decision": enriched,
+                "reports": reports,
+                "bull_case": bull,
+                "bear_case": bear,
+                "narrative": narrative,
+            }
+        finally:
+            reset_run_context(tokens)
+
     # ----- graph construction -----------------------------------------------
 
     def _build_graph(self) -> Any:
@@ -383,14 +606,10 @@ class Orchestrator:
             return _heuristic_parse(query)
 
     async def _parse_with_openai(self, query: str) -> ParsedQuery:
-        from packages.agents._llm_helpers import openai_create_tracked
-        from packages.agents.llm_provider import effective_chat_model, get_litellm_instructor_client
+        from packages.agents.model_provider import get_chat_provider
 
-        client = get_litellm_instructor_client()
-        model = effective_chat_model(self.openai_model)
-        return await openai_create_tracked(
-            client,
-            model=model,
+        provider = get_chat_provider(self.chat_model)
+        return await provider.complete(
             response_model=ParsedQuery,
             max_tokens=self.max_tokens,
             temperature=0.3,
@@ -410,7 +629,9 @@ class Orchestrator:
             except ValueError:
                 mode_config = None
             seed_overrides = dict(state.get("context") or {})
-            builder = self._context_builder or _build_default_builder(market, mode_config)
+            builder = self._context_builder or _build_default_builder(
+                market, mode_config, evaluator=self._evaluator
+            )
             try:
                 ctx = await builder.build(ticker, market)
             except Exception as e:
@@ -420,18 +641,47 @@ class Orchestrator:
                     f"context build failed: {e}",
                     {"keys": len(seed_overrides), "error": str(e)},
                 )
+            finally:
+                # A builder we created owns its providers' network sessions;
+                # an injected one is the caller's to manage.
+                if self._context_builder is None:
+                    await builder.aclose()
             ctx            = _sanitize_for_checkpoint(ctx)
             seed_overrides = _sanitize_for_checkpoint(seed_overrides)
             merged: dict[str, Any] = {**ctx, **seed_overrides}
+
+            # Intraday RAG market-memory recall (read-only evidence). Runs only
+            # for intraday and only when a memory store is wired in. Retrieved
+            # similar historical fingerprints inform confidence + explanation;
+            # they never alter the deterministic signal.
+            update: dict[str, Any] = {"context": merged}
+            mem_summary = ""
+            if mode == "intraday" and self._market_memory is not None:
+                try:
+                    evidence = await asyncio.to_thread(
+                        self._market_memory.retrieve_evidence, merged, ticker
+                    )
+                    update["historical_evidence"] = evidence
+                    update["historical_memories"] = evidence.get("cases", [])
+                    if evidence.get("n"):
+                        mem_summary = (
+                            f"; {evidence['n']} similar setups "
+                            f"(hit-rate {float(evidence.get('success_rate') or 0):.0%})"
+                        )
+                except Exception as e:
+                    logger.warning("market-memory recall failed: %s", e)
+
             summary = (
                 f"Built context with {len(merged)} keys for {ticker} ({market})"
                 + (f" (+{len(seed_overrides)} caller overrides)" if seed_overrides else "")
+                + mem_summary
             )
             return (
-                {"context": merged},
+                update,
                 summary,
                 {"keys": len(merged), "overrides": len(seed_overrides),
-                 "sample": sorted(merged.keys())[:10]},
+                 "sample": sorted(merged.keys())[:10],
+                 "historical_n": (update.get("historical_evidence") or {}).get("n", 0)},
             )
         return await _timed("context_build", runner)
 
@@ -585,9 +835,14 @@ class Orchestrator:
                 )
 
             coverage = evaluation.data_coverage_pct if evaluation is not None else 100.0
+            hist = state.get("historical_evidence") or {}
             decision = self._decision_agent.build(
                 ticker=ticker, market=market, judgment=judgment,
                 context=ctx, data_coverage_pct=coverage, mode=mode,
+                evaluation=evaluation,
+                historical_success=hist.get("success_rate"),
+                historical_similarity=hist.get("mean_similarity"),
+                n_historical=int(hist.get("n") or 0),
             )
 
             if (
@@ -650,6 +905,80 @@ class Orchestrator:
             }
             return {"decision": decision}, summary, payload
         return await _timed("decide", runner)
+
+
+# ---------------------------------------------------------------------------
+# Critical-path result + deterministic rule summary
+# ---------------------------------------------------------------------------
+
+from dataclasses import dataclass as _dataclass, field as _field  # noqa: E402
+
+
+@_dataclass
+class FastDecision:
+    """Result of the deterministic critical path (:meth:`Orchestrator.arun_fast`)."""
+
+    decision: Decision
+    evaluation: Any
+    context: dict[str, Any]
+    historical: dict[str, Any] = _field(default_factory=dict)
+    judgment: Judgment | None = None
+    thread_id: str = ""
+    ttd_ms: float = 0.0
+
+    def rule_summary(self) -> dict[str, Any]:
+        """Matched / neutral / skipped rule ids for the immediate response."""
+        matched: list[str] = []
+        neutral: list[str] = []
+        skipped: list[str] = []
+        for pr in getattr(self.evaluation, "pillar_details", []) or []:
+            for r in getattr(pr, "rule_results", []) or []:
+                if getattr(r, "skipped", False):
+                    skipped.append(r.rule_id)
+                elif r.tier == "neutral":
+                    neutral.append(r.rule_id)
+                else:
+                    matched.append(f"{r.rule_id}:{r.tier}")
+        return {"matched": matched, "neutral": neutral, "skipped": skipped}
+
+
+def _top_cited_rule_ids(evaluation: Any, limit: int = 6) -> list[str]:
+    """The most decisive fired rules (largest deviation from neutral)."""
+    fired: list[tuple[float, str]] = []
+    for pr in getattr(evaluation, "pillar_details", []) or []:
+        for r in getattr(pr, "rule_results", []) or []:
+            if not getattr(r, "skipped", False) and r.tier != "neutral":
+                fired.append((abs(r.score - 50.0), r.rule_id))
+    fired.sort(key=lambda x: -x[0])
+    return [rid for _w, rid in fired[:limit]]
+
+
+def _deterministic_rationale(
+    ticker: str, market: str, evaluation: Any, historical: dict[str, Any]
+) -> str:
+    """Short, LLM-free explanation available the instant the decision is made.
+
+    The background enrichment pass may later replace this with richer prose,
+    but the decision is fully explainable without waiting for any model.
+    """
+    sig = evaluation.final_signal_after_overrides
+    parts = [
+        f"{sig} for {ticker} ({market}) — composite {evaluation.composite_score:.1f}/100 "
+        f"across {evaluation.rules_evaluated_count} evaluated rules "
+        f"({evaluation.data_coverage_pct:.0f}% data coverage)."
+    ]
+    cited = _top_cited_rule_ids(evaluation, limit=4)
+    if cited:
+        parts.append("Key rules: " + ", ".join(cited) + ".")
+    active = [o for o in evaluation.overrides_triggered if getattr(o, "triggered", False)]
+    if active:
+        parts.append("Overrides: " + ", ".join(o.override_id for o in active) + ".")
+    n = int(historical.get("n") or 0)
+    if n:
+        sr = historical.get("success_rate")
+        if sr is not None:
+            parts.append(f"{n} similar historical setups, {sr:.0%} historically favourable.")
+    return " ".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -719,12 +1048,15 @@ def _force_utf8_stdout() -> None:
 
 
 def _build_default_builder(
-    market: Market, mode_config: ModeConfig | None = None
+    market: Market,
+    mode_config: ModeConfig | None = None,
+    evaluator: Any | None = None,
 ) -> ContextBuilder:
     from packages.data.context_builder import _build_default_providers
     providers, screener, nse, gdelt = _build_default_providers(market)
     return ContextBuilder(
-        providers, screener=screener, nse=nse, gdelt=gdelt, mode_config=mode_config,
+        providers, screener=screener, nse=nse, gdelt=gdelt,
+        mode_config=mode_config, evaluator=evaluator,
     )
 
 

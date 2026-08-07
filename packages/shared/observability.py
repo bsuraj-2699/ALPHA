@@ -7,15 +7,14 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 
-# Per-million-token USD pricing for the OpenAI models we call.
-# Source: OpenAI public pricing (May 2026).
+# Per-million-token USD (input, output) pricing keyed by model id. The default
+# provider (NVIDIA NIM open-weight models) is free-tier, so its cost is zero;
+# entries exist to keep the ledger accurate if a paid endpoint is configured.
 _PRICING_PER_MTOK: dict[str, tuple[float, float]] = {
-    "gpt-4o":          (2.50,  10.00),
-    "gpt-4o-mini":     (0.15,   0.60),
-    "gpt-4o-2024-11-20": (2.50, 10.00),
-    "gpt-4-turbo":     (10.00, 30.00),
+    "meta/llama-3.3-70b-instruct":            (0.0, 0.0),
+    "nvidia/llama-3.1-nemotron-70b-instruct": (0.0, 0.0),
 }
-_DEFAULT_PRICING = (2.50, 10.00)  # fall back to gpt-4o pricing
+_DEFAULT_PRICING = (0.0, 0.0)
 
 
 @dataclass(frozen=True)

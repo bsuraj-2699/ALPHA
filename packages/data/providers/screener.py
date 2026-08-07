@@ -393,7 +393,12 @@ class ScreenerProvider:
         if op_ttm is not None and int_ttm is not None and int_ttm > 0:
             out["interest_coverage_ratio"] = abs(op_ttm / int_ttm)
 
-        # Dividend series — cut detection and 5-year growth
+        # Dividend series — payout-ratio direction and 5-year growth.
+        # NOTE: ``dividend_cut_announced`` is a misnomer kept for compatibility.
+        # It is the payout RATIO falling YoY, which is not an announced cut — a
+        # company raising its dividend more slowly than earnings trips it too.
+        # No rule consumes it since OVR-O3 was removed; don't wire it to a new
+        # rule without replacing it with a real cut signal.
         div_s = _row_series(pl, ["Dividend Payout %", "Dividend Payout"])
         out["dividend_cut_announced"] = bool(len(div_s) >= 2 and div_s[0] < div_s[1])
         if len(div_s) >= 5:
