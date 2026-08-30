@@ -11,6 +11,7 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
+from contextlib import aclosing
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
@@ -29,6 +30,8 @@ from packages.shared.config import get_mode_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+TERMINAL_STATUSES = frozenset({"complete", "error", "interrupted"})
 
 
 # ---------------------------------------------------------------------------
@@ -146,31 +149,32 @@ async def _sse_event_generator(
     keepalive_seconds: int,
     run_manager: RunManager,
 ) -> AsyncIterator[dict[str, Any]]:
-    # Subscribe BEFORE the status check, so a run that finishes in between
-    # doesn't slip through the gap and hang the client.
-    sub = bus.subscribe(run_id)
-    try:
+    """Translate bus events -> SSE envelopes.
+
+    Each yielded dict carries ``event`` (the SSE event name, drives client
+    dispatch) and ``data`` (JSON-encoded envelope body). The stream closes
+    on terminal events or when the client disconnects.
+    """
+    async with aclosing(bus.subscribe(run_id)) as sub:
         rec = run_manager.get(run_id)
         if rec is None or rec.status in TERMINAL_STATUSES:
-            yield {
-                "event": "done",
-                "data": json.dumps({
-                    "run_id": run_id,
-                    "status": getattr(rec, "status", "unknown"),
-                }),
-            }
+            yield {"event": "done", "data": json.dumps({
+                "run_id": run_id, "status": getattr(rec, "status", "unknown"),
+            })}
             return
 
+        disconnected = False
         async for event in sub:
             if await request.is_disconnected():
+                disconnected = True
                 break
             event_type = event.get("type", "thinking")
-            if event_type == "_terminal_":
-                yield {"event": "done", "data": json.dumps({"run_id": run_id})}
+            if event_type in TERMINAL_EVENT_TYPES:
                 break
             yield {"event": event_type, "data": json.dumps(event)}
-    finally:
-        bus.unsubscribe(sub)   # or sub.close() / aclose(), whatever your EventBus exposes
+
+        if not disconnected:
+            yield {"event": "done", "data": json.dumps({"run_id": run_id})}
         # The async-generator from EventBus.subscribe() needs explicit
         # cleanup; sub.aclose() is called by GC eventually but doing it
         # eagerly avoids leaking the queue between requests.
