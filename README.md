@@ -187,14 +187,14 @@ Agents depend only on the `ChatProvider` interface — **no agent imports `litel
 |:---|:---|:---|
 | `LLM_API_BASE` | `https://integrate.api.nvidia.com/v1` | OpenAI-compatible base URL |
 | `LLM_API_KEY` | *(blank)* | Endpoint key. **Blank = fully offline** — templated prose, zero API calls |
-| `LLM_MODEL` | `meta/llama-3.1-8b-instruct` | **Primary** model |
-| `LLM_FALLBACK_MODEL` | `nvidia/nvidia-nemotron-nano-9b-v2` | **Fallback**, tried automatically when the primary raises |
+| `LLM_MODEL` | `nvidia/llama-3.1-nemotron-70b-instruct` | **Primary** model |
+| `LLM_FALLBACK_MODEL` | `mistralai/mistral-large-2-instruct` | **Fallback**, tried automatically when the primary raises |
 | `LLM_TIMEOUT` | `25` | Per-call timeout (seconds) |
 
 `get_chat_provider()` builds both models, wraps them in `FailoverChatProvider` (primary → fallback on any error), then in `GuardedChatProvider`.
 
 > [!WARNING]
-> **Do not swap model ids without probing them first.** Both models must support **tool/function calling**, because instructor needs structured output. Most of the NIM catalogue does not: it raises `InstructorRetryException`, times out, or returns `404 "Function ... not found for account"` — the `/v1/models` list is NVIDIA's *public catalogue*, not what a given key may invoke. Bigger is not better here: the 70b models are not invocable on this account, while `meta/llama-3.1-8b-instruct` returns valid structured narrative in **under 1 s**. A fallback that cannot do structured output is worse than none — every failover burns the full timeout budget before failing anyway. Probe with a real `provider.complete(response_model=...)` call, not a plain chat completion.
+> **Do not swap model ids without probing them first.** Both models must support **tool/function calling**, because instructor needs structured output. Most of the NIM catalogue does not: it raises `InstructorRetryException`, times out, or returns `404 "Function ... not found for account"` — the `/v1/models` list is NVIDIA's *public catalogue*, not what a given key may invoke. Size cuts both ways: `meta/llama-3.1-8b-instruct` was too small to satisfy the Pydantic schemas and raised `InstructorRetryException` on nearly every call, so the primary is now `nvidia/llama-3.1-nemotron-70b-instruct` — but entitlement is still per-account, so re-probe rather than assume a larger id works. Ids also get withdrawn: NVIDIA retired `nvidia/nvidia-nemotron-nano-9b-v2` on 2026-08-26 and it now returns **HTTP 410**, which `is_model_retired_error` treats as permanent so failover skips straight to the fallback instead of re-prompting a model that no longer exists. A fallback that cannot do structured output is worse than none — every failover burns the full timeout budget before failing anyway. Probe with a real `provider.complete(response_model=...)` call, not a plain chat completion.
 
 ### Guardrails & rate limiting
 

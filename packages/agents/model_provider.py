@@ -28,9 +28,12 @@ from packages.agents.guardrails import (
     get_rate_limiter,
 )
 from packages.agents.llm_provider import (
+    MODEL_RETIRED_STATUS,
     api_base,
     api_key,
+    instructor_retry_policy,
     is_any_llm_configured,
+    is_model_retired_error,
     model_ids,
     request_timeout,
 )
@@ -45,6 +48,10 @@ DEFAULT_CHAT_MODEL = "meta/llama-3.1-8b-instruct"
 # Headroom added to LLM_TIMEOUT for the hard wall-clock cap on one model call,
 # so the transport's own timeout wins the race in the normal case.
 _WALL_CLOCK_GRACE_SECONDS = 5.0
+
+# instructor attempts per model: one generation plus two re-prompts carrying the
+# validation error back to the model.
+_INSTRUCTOR_MAX_ATTEMPTS = 3
 
 
 @runtime_checkable
@@ -117,7 +124,12 @@ class LiteLLMChatProvider:
         # failover. Re-prompting with the validation error is instructor's whole
         # reliability mechanism and is what small open-weight models need; the
         # cost is only paid on failure, and wait_for below still bounds it.
-        kwargs.setdefault("max_retries", 3)
+        # Passed as an explicit tenacity policy rather than a bare int so a
+        # retired model id (HTTP 410) short-circuits instead of re-prompting an
+        # endpoint that no longer exists.
+        kwargs.setdefault(
+            "max_retries", instructor_retry_policy(_INSTRUCTOR_MAX_ATTEMPTS, timeout)
+        )
         return await asyncio.wait_for(
             openai_create_tracked(
                 client,
@@ -174,10 +186,19 @@ class FailoverChatProvider:
                 )
             except Exception as e:
                 last_exc = e
-                logger.warning(
-                    "chat model %s failed: %s; trying fallback",
-                    p.model, type(e).__name__,
-                )
+                if is_model_retired_error(e):
+                    # Permanent: the id is gone upstream. Surfaced loudly
+                    # because the fix is a config change, not a retry.
+                    logger.error(
+                        "chat model %s is retired upstream (HTTP %d); "
+                        "update LLM_MODEL/LLM_FALLBACK_MODEL. Trying fallback",
+                        p.model, MODEL_RETIRED_STATUS,
+                    )
+                else:
+                    logger.warning(
+                        "chat model %s failed: %s; trying fallback",
+                        p.model, type(e).__name__,
+                    )
         raise last_exc if last_exc is not None else RuntimeError(
             "no chat models configured"
         )

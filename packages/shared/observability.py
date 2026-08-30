@@ -13,6 +13,7 @@ from typing import Any, Awaitable, Callable
 _PRICING_PER_MTOK: dict[str, tuple[float, float]] = {
     "meta/llama-3.3-70b-instruct":            (0.0, 0.0),
     "nvidia/llama-3.1-nemotron-70b-instruct": (0.0, 0.0),
+    "mistralai/mistral-large-2-instruct":     (0.0, 0.0),
 }
 _DEFAULT_PRICING = (0.0, 0.0)
 

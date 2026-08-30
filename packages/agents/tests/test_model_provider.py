@@ -16,6 +16,8 @@ from packages.agents import guardrails
 from packages.agents.llm_provider import (
     DEFAULT_FALLBACK_MODEL,
     DEFAULT_PRIMARY_MODEL,
+    instructor_retry_policy,
+    is_model_retired_error,
 )
 from packages.agents.model_provider import (
     ChatProvider,
@@ -144,3 +146,92 @@ def test_agents_have_no_vendor_sdk_imports():
         if "import litellm" in text or "import instructor" in text:
             offenders.append(py.name)
     assert offenders == [], f"vendor SDK imported in agents: {offenders}"
+
+
+# --- retired model (HTTP 410) fast-fail ------------------------------------
+
+
+class _Retired(Exception):
+    """Stand-in for the litellm/openai error raised for a withdrawn model id."""
+
+    def __init__(self, status_code: int = 410) -> None:
+        super().__init__(f"HTTP {status_code}")
+        self.status_code = status_code
+
+
+def test_detects_410_direct_and_wrapped():
+    assert is_model_retired_error(_Retired()) is True
+    # instructor/litellm re-raise, so the 410 is often only in the cause chain.
+    try:
+        try:
+            raise _Retired()
+        except _Retired as inner:
+            raise RuntimeError("instructor gave up") from inner
+    except RuntimeError as outer:
+        assert is_model_retired_error(outer) is True
+
+
+def test_non_410_errors_are_not_treated_as_retired():
+    assert is_model_retired_error(_Retired(429)) is False
+    assert is_model_retired_error(_Retired(404)) is False
+    assert is_model_retired_error(ConnectionError("down")) is False
+    assert is_model_retired_error(None) is False
+
+
+def test_retired_error_detection_survives_cyclic_cause():
+    a = _Retired(500)
+    b = RuntimeError("b")
+    a.__cause__ = b
+    b.__cause__ = a
+    assert is_model_retired_error(a) is False  # terminates, no infinite loop
+
+
+async def test_retry_policy_does_not_retry_a_retired_model():
+    """A 410 must cost exactly one attempt, not the full instructor budget."""
+    attempts = 0
+
+    async def _call():
+        nonlocal attempts
+        attempts += 1
+        raise _Retired()
+
+    with pytest.raises(_Retired):
+        async for attempt in instructor_retry_policy(3):
+            with attempt:
+                await _call()
+    assert attempts == 1
+
+
+async def test_retry_policy_still_retries_schema_failures():
+    attempts = 0
+
+    async def _call():
+        nonlocal attempts
+        attempts += 1
+        raise ValueError("schema mismatch")
+
+    with pytest.raises(Exception):
+        async for attempt in instructor_retry_policy(3):
+            with attempt:
+                await _call()
+    assert attempts == 3
+
+
+async def test_failover_reaches_fallback_after_a_retired_primary():
+    class _Out(pydantic.BaseModel):
+        ok: bool
+
+    class _Gone(LiteLLMChatProvider):
+        async def complete(self, **kw):
+            raise _Retired()
+
+    class _Works(LiteLLMChatProvider):
+        async def complete(self, **kw):
+            return _Out(ok=True)
+
+    fp = FailoverChatProvider([_Gone(model="retired"), _Works(model="live")])
+    out = await fp.complete(
+        response_model=_Out, messages=[{"role": "user", "content": "hi"}],
+        max_tokens=10, temperature=0.0,
+    )
+    assert out.ok is True
