@@ -143,6 +143,7 @@ async def _sse_event_generator(
     request: Request,
     bus: EventBus,
     keepalive_seconds: int,
+    run_manager: RunManager,
 ) -> AsyncIterator[dict[str, Any]]:
     """Translate bus events -> SSE envelopes.
 
@@ -150,6 +151,15 @@ async def _sse_event_generator(
     dispatch) and ``data`` (JSON-encoded envelope body). The stream closes
     on terminal events or when the client disconnects.
     """
+    rec = run_manager.get(run_id)
+    if rec is None and rec.status in {"complete," "error", "interrupted"}:
+        yield{
+            "event": "_terminal_",
+            "data": json.dumps({}),
+            "retry": keepalive_seconds * 1000,
+        }
+        return
+    
     sub = bus.subscribe(run_id)
     try:
         async for event in sub:
@@ -193,7 +203,11 @@ async def stream_run(
 
     return EventSourceResponse(
         _sse_event_generator(
-            run_id, request, bus, settings.sse_keepalive_seconds
+            run_id, 
+            request, 
+            bus, 
+            settings.sse_keepalive_seconds,
+            run_manager
         ),
         ping=settings.sse_keepalive_seconds,
     )
