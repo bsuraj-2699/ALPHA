@@ -137,6 +137,7 @@ async def get_run(
 # GET /api/runs/{run_id}/stream
 # ---------------------------------------------------------------------------
 
+TERMINAL_STATUSES = frozenset({"complete", "error", "interrupted"})
 
 async def _sse_event_generator(
     run_id: str,
@@ -145,39 +146,31 @@ async def _sse_event_generator(
     keepalive_seconds: int,
     run_manager: RunManager,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Translate bus events -> SSE envelopes.
-
-    Each yielded dict carries ``event`` (the SSE event name, drives client
-    dispatch) and ``data`` (JSON-encoded envelope body). The stream closes
-    on terminal events or when the client disconnects.
-    """
-    rec = run_manager.get(run_id)
-    if rec is None and rec.status in {"complete," "error", "interrupted"}:
-        yield{
-            "event": "_terminal_",
-            "data": json.dumps({}),
-            "retry": keepalive_seconds * 1000,
-        }
-        return
-    
+    # Subscribe BEFORE the status check, so a run that finishes in between
+    # doesn't slip through the gap and hang the client.
     sub = bus.subscribe(run_id)
     try:
+        rec = run_manager.get(run_id)
+        if rec is None or rec.status in TERMINAL_STATUSES:
+            yield {
+                "event": "done",
+                "data": json.dumps({
+                    "run_id": run_id,
+                    "status": getattr(rec, "status", "unknown"),
+                }),
+            }
+            return
+
         async for event in sub:
             if await request.is_disconnected():
                 break
             event_type = event.get("type", "thinking")
-            # Don't surface the internal `_terminal_` marker to clients;
-            # it's only there to break the in-process generator loop.
             if event_type == "_terminal_":
+                yield {"event": "done", "data": json.dumps({"run_id": run_id})}
                 break
-            yield {
-                "event": event_type,
-                "data": json.dumps(event),
-                "retry": keepalive_seconds * 1000,
-            }
-            if event_type in TERMINAL_EVENT_TYPES:
-                break
+            yield {"event": event_type, "data": json.dumps(event)}
     finally:
+        bus.unsubscribe(sub)   # or sub.close() / aclose(), whatever your EventBus exposes
         # The async-generator from EventBus.subscribe() needs explicit
         # cleanup; sub.aclose() is called by GC eventually but doing it
         # eagerly avoids leaking the queue between requests.
