@@ -133,8 +133,10 @@ class Judge:
         narrator = self._narrator or self._resolve_default_narrator()
         try:
             return await narrator(prompt, info)
-        except Exception as e:
-            logger.warning("Judge narrator failed (%s); using templated synthesis", e)
+        except Exception:
+            logger.warning(
+                "Judge narrator failed; using templated synthesis", exc_info=True
+            )
             return _templated_synthesis(evaluation, bull_case, bear_case, cited_rules)
 
     def _render_prompt(

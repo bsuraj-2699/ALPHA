@@ -47,8 +47,11 @@ class _DebateAgent:
         narrator = self._narrator or self._resolve_default_narrator()
         try:
             return await narrator(prompt, info)
-        except Exception as e:
-            logger.warning("%s narrator failed (%s); using templated fallback", self.side, e)
+        except Exception:
+            logger.warning(
+                "%s narrator failed; using templated fallback",
+                self.side, exc_info=True,
+            )
             return _templated_case(self.side, self.response_model, analyst_reports)
 
     def _render_prompt(

@@ -130,10 +130,10 @@ class BaseAnalyst:
             narrator = self._resolve_default_narrator()
         try:
             return await narrator(prompt, info)
-        except Exception as e:
+        except Exception:
             logger.warning(
-                "%s narrator failed (%s); falling back to templated narrative",
-                type(self).__name__, e,
+                "%s narrator failed; falling back to templated narrative",
+                type(self).__name__, exc_info=True,
             )
             return _templated_narrative(self.pillar, info)
 
