@@ -65,7 +65,7 @@ _INTRADAY_PERSIST_SIGNALS = frozenset({"BUY", "STRONG_BUY", "SELL", "STRONG_SELL
 # then debate, then judge = 3 sequential waves. Blowing it is not a correctness
 # problem: the deterministic decision is already emitted, and enrichment
 # degrades to templated prose.
-_ENRICH_TIMEOUT_S = 120.0
+_ENRICH_TIMEOUT_S = 600.0
 
 
 @dataclass
