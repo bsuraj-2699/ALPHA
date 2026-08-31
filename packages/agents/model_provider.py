@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 # Default reasoning/narration model for the whole system.
-DEFAULT_CHAT_MODEL = "meta/llama-3.1-8b-instruct"
+DEFAULT_CHAT_MODEL = "meta/llama-3.2-90b-vision-instruct"
 
 # Headroom added to LLM_TIMEOUT for the hard wall-clock cap on one model call,
 # so the transport's own timeout wins the race in the normal case.

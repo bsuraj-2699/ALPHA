@@ -19,10 +19,10 @@ LLM_API_KEY
     API key for the endpoint. When empty the whole pipeline runs offline with
     templated prose (no external calls).
 LLM_MODEL
-    Primary model id. Default ``nvidia/llama-3.1-nemotron-70b-instruct``.
+    Primary model id. Default ``meta/llama-3.2-90b-vision-instruct``.
 LLM_FALLBACK_MODEL
     Fallback model id used when the primary call fails (quota / outage / error).
-    Default ``mistralai/mistral-large-2-instruct``.
+    Default ``meta/llama-3.2-90b-vision-instruct``.
 """
 
 from __future__ import annotations
@@ -47,8 +47,8 @@ DEFAULT_API_BASE = "https://integrate.api.nvidia.com/v1"
 # entitled for a given account (404 "Function ... not found"), while a retired
 # id returns 410 (see ``is_model_retired_error``). Re-probe with a real
 # ``provider.complete(response_model=...)`` call before changing either id.
-DEFAULT_PRIMARY_MODEL = "nvidia/llama-3.1-nemotron-70b-instruct"
-DEFAULT_FALLBACK_MODEL = "mistralai/mistral-large-2-instruct"
+DEFAULT_PRIMARY_MODEL = "meta/llama-3.2-90b-vision-instruct"
+DEFAULT_FALLBACK_MODEL = "meta/llama-3.2-90b-vision-instruct"
 
 _instructor_client: object | None = None
 
