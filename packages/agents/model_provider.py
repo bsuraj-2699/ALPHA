@@ -79,8 +79,29 @@ _LITELLM_PREFIXES: frozenset[str] = frozenset(
 )
 
 
-def _routed_model(model: str) -> str:
-    """Route through LiteLLM's OpenAI-compatible path unless already prefixed."""
+def _routed_model(model: str, base_url: str = "") -> str:
+    """Route through LiteLLM's OpenAI-compatible path.
+
+    With a custom ``base_url`` the id belongs to *that endpoint's* namespace and
+    has to arrive intact, so it always gets the ``openai/`` routing prefix —
+    even when it already starts with one. The resulting double prefix looks
+    wrong and is not: LiteLLM strips exactly one leading ``<provider>/`` segment
+    to choose its transport, so an id that namespaces itself with that same
+    string collides with the routing scheme.
+
+    Concretely, Groq (``https://api.groq.com/openai/v1``) serves a model whose
+    real id is ``openai/gpt-oss-120b``. Returning that unchanged — as the old
+    "already prefixed, leave it alone" check did — made LiteLLM consume the
+    ``openai/`` as its provider prefix and send bare ``gpt-oss-120b``, which
+    404s ("does not exist or you do not have access to it") even though the
+    model is there under its full name. ``openai/openai/gpt-oss-120b`` is the
+    correct wire value. Do not "simplify" the double prefix away.
+
+    Without a ``base_url`` there is no endpoint namespace to protect, so the
+    original prefix-detection behaviour is kept for those callers.
+    """
+    if base_url:
+        return f"openai/{model}"
     if model.split("/", 1)[0] in _LITELLM_PREFIXES:
         return model
     return f"openai/{model}"
@@ -133,7 +154,7 @@ class LiteLLMChatProvider:
         return await asyncio.wait_for(
             openai_create_tracked(
                 client,
-                model=_routed_model(self.model),
+                model=_routed_model(self.model, self.base_url),
                 response_model=response_model,
                 messages=messages,
                 max_tokens=max_tokens,

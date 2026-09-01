@@ -21,6 +21,7 @@ from packages.agents.llm_provider import (
 )
 from packages.agents.model_provider import (
     ChatProvider,
+    _routed_model,
     FailoverChatProvider,
     GuardedChatProvider,
     LiteLLMChatProvider,
@@ -235,3 +236,44 @@ async def test_failover_reaches_fallback_after_a_retired_primary():
         max_tokens=10, temperature=0.0,
     )
     assert out.ok is True
+
+
+# --- model id routing -------------------------------------------------------
+
+
+def test_routed_model_prefixes_a_bare_id():
+    assert _routed_model("meta/llama-3.3-70b-instruct") == "openai/meta/llama-3.3-70b-instruct"
+
+
+def test_routed_model_leaves_prefixed_id_alone_without_base_url():
+    # Legacy path: no endpoint namespace to protect.
+    assert _routed_model("openai/gpt-4o") == "openai/gpt-4o"
+    assert _routed_model("ollama/llama3") == "ollama/llama3"
+
+
+def test_routed_model_double_prefixes_colliding_id_on_custom_endpoint():
+    """Groq's real id is ``openai/gpt-oss-120b`` — its own namespace collides
+    with LiteLLM's provider prefix, so it must still be prefixed.
+
+    LiteLLM strips one layer, so the endpoint receives the full id. Returning
+    it unchanged sends bare ``gpt-oss-120b`` and 404s.
+    """
+    assert (
+        _routed_model("openai/gpt-oss-120b", "https://api.groq.com/openai/v1")
+        == "openai/openai/gpt-oss-120b"
+    )
+
+
+def test_routed_model_prefixes_noncolliding_id_on_custom_endpoint():
+    assert (
+        _routed_model("meta/llama-3.3-70b-instruct", "https://api.groq.com/openai/v1")
+        == "openai/meta/llama-3.3-70b-instruct"
+    )
+
+
+def test_provider_routes_using_its_own_base_url():
+    """The wire value comes from the provider's base_url, not global state."""
+    p = LiteLLMChatProvider(
+        model="openai/gpt-oss-120b", base_url="https://api.groq.com/openai/v1", key="k"
+    )
+    assert _routed_model(p.model, p.base_url) == "openai/openai/gpt-oss-120b"
