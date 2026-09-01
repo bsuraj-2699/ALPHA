@@ -34,7 +34,7 @@ from packages.shared.schemas import Market
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.gdeltproject.org/api/v2/doc/doc"
-_TIMEOUT = 30.0
+_TIMEOUT = 12.0
 _TTL = 60 * 60  # 1h
 _NEG_THRESHOLD = -2.0  # tone < -2 counts as a "negative" article
 _SPIKE_RATIO = 2.0

@@ -197,17 +197,18 @@ class ContextBuilder:
             self._safe_block("vix", self._vix_block(market)),
             self._safe_block("gdelt", self._gdelt_block(ticker, market)),
         ]
-        try:
-            gathered = await asyncio.wait_for(
-                asyncio.gather(*blocks),
-                timeout=GLOBAL_BUILD_TIMEOUT_S,
-            )
-        except TimeoutError:
-            logger.warning(
-                "context build hit %.1fs global timeout — returning partial context",
-                GLOBAL_BUILD_TIMEOUT_S,
-            )
-            gathered = []
+                # Per-block deadlines: one slow provider drops out on its own instead
+        # of cancelling the gather and discarding every block that succeeded.
+        results = await asyncio.gather(
+            *(asyncio.wait_for(b, timeout=GLOBAL_BUILD_TIMEOUT_S) for b in blocks),
+            return_exceptions=True,
+        )
+        gathered = []
+        for r in results:
+            if isinstance(r, BaseException):
+                logger.warning("context block failed: %s", type(r).__name__)
+                continue
+            gathered.append(r)
 
         for _name, block in gathered:
             if block:
