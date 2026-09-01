@@ -197,7 +197,7 @@ class ContextBuilder:
             self._safe_block("vix", self._vix_block(market)),
             self._safe_block("gdelt", self._gdelt_block(ticker, market)),
         ]
-                # Per-block deadlines: one slow provider drops out on its own instead
+        # Per-block deadlines: one slow provider drops out on its own instead
         # of cancelling the gather and discarding every block that succeeded.
         results = await asyncio.gather(
             *(asyncio.wait_for(b, timeout=GLOBAL_BUILD_TIMEOUT_S) for b in blocks),
