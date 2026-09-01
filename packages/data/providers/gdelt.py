@@ -101,8 +101,16 @@ class GDELTProvider:
         try:
             payload = resp.json()
         except ValueError:
-            logger.warning("gdelt non-JSON response")
-            return {}
+            logger.warning(
+                "gdelt non-JSON response (status=%d, ct=%s): %r",
+                resp.status_code,
+                resp.headers.get("content-type"),
+                resp.text[:300],
+            )
+            return {
+                "news_sentiment_14d_avg": 0.0,
+                "negative_news_volume_spike": False,
+            }
 
         articles = payload.get("articles") or []
         if not articles:
