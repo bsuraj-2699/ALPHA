@@ -34,7 +34,7 @@ from packages.shared.schemas import Market
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.gdeltproject.org/api/v2/doc/doc"
-_TIMEOUT = 10.0
+_TIMEOUT = 30.0
 _TTL = 60 * 60  # 1h
 _NEG_THRESHOLD = -2.0  # tone < -2 counts as a "negative" article
 _SPIKE_RATIO = 2.0
@@ -50,7 +50,7 @@ class GDELTProvider:
         rate_limiter: RateLimiter | None = None,
     ) -> None:
         self.cache = cache if cache is not None else RedisCache()
-        self.rate_limiter = rate_limiter or RateLimiter.per_minute(5)
+        self.rate_limiter = rate_limiter or RateLimiter(rate=1/6.0, capacity=1)
 
     @staticmethod
     def _query_for(ticker: str, market: Market) -> str:
@@ -71,8 +71,8 @@ class GDELTProvider:
         params = {
             "query": self._query_for(ticker, market),
             "mode": "ArtList",
-            "maxrecords": "250",
-            "timespan": "14d",
+            "maxrecords": "75",
+            "timespan": "7d",
             "format": "json",
             "sort": "DateDesc",
         }
