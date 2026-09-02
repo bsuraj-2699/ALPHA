@@ -22,7 +22,7 @@ class Settings:
     # Orchestrator behavior. ``chat_model`` is only the offline fallback id;
     # when an API key is set the provider layer uses LLM_MODEL / LLM_FALLBACK_MODEL.
     auto_approve_strong_signals: bool = False
-    chat_model: str = "meta/llama-3.3-70b-instruct"
+    chat_model: str = "openai/gpt-oss-120b"
 
     # Idempotency window: dedupe duplicate POSTs within this many hours.
     idempotency_ttl_hours: int = 24
@@ -62,7 +62,7 @@ def load_settings() -> Settings:
         auto_approve_strong_signals=_env_bool(
             "AUTO_APPROVE_STRONG_SIGNALS", False
         ),
-        chat_model=os.getenv("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
+        chat_model=os.getenv("LLM_MODEL", "openai/gpt-oss-120b"),
         idempotency_ttl_hours=_env_int("IDEMPOTENCY_TTL_HOURS", 24),
         sse_keepalive_seconds=_env_int("SSE_KEEPALIVE_SECONDS", 15),
         allow_origins=os.getenv(

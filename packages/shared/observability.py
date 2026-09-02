@@ -8,9 +8,12 @@ from typing import Any, Awaitable, Callable
 
 
 # Per-million-token USD (input, output) pricing keyed by model id. The default
-# provider (NVIDIA NIM open-weight models) is free-tier, so its cost is zero;
-# entries exist to keep the ledger accurate if a paid endpoint is configured.
+# provider (Groq open-weight models) is free-tier, so its cost is zero; entries
+# exist to keep the ledger accurate if a paid endpoint is configured. Ids from
+# previously configured providers are kept so historical runs still price.
 _PRICING_PER_MTOK: dict[str, tuple[float, float]] = {
+    "openai/gpt-oss-120b":                    (0.0, 0.0),
+    "openai/gpt-oss-20b":                     (0.0, 0.0),
     "meta/llama-3.3-70b-instruct":            (0.0, 0.0),
     "nvidia/llama-3.1-nemotron-70b-instruct": (0.0, 0.0),
     "mistralai/mistral-large-2-instruct":     (0.0, 0.0),

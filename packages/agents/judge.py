@@ -23,7 +23,7 @@ class Judge:
         evaluator: RuleEvaluator,
         retriever: RAGRetriever | None = None,
         narrator:  JudgeNarrator | None = None,
-        chat_model: str = "meta/llama-3.3-70b-instruct",
+        chat_model: str = "openai/gpt-oss-120b",
         max_tokens:   int = 1500,
         temperature:  float = 0.3,
         rag_top_k:    int = 5,

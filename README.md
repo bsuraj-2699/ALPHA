@@ -179,22 +179,24 @@ Axes with no evidence (no historical memories, a pillar with no technicals) are 
 
 ## 🤖 LLM — one provider, open-weight models
 
-Chat flows (**query parse**, pillar **analysts**, **debate**, **judge**) use **`instructor`** over **`litellm`** against **one** OpenAI-compatible endpoint. The default is **NVIDIA NIM** — free tier, works from India, hosts open-weight models. Any other compatible host (Groq, OpenRouter, a local vLLM/Ollama `/v1`) works by changing the base URL.
+Chat flows (**query parse**, pillar **analysts**, **debate**, **judge**) use **`instructor`** over **`litellm`** against **one** OpenAI-compatible endpoint. The default is **Groq** — free tier, fast inference, hosts open-weight models. Any other compatible host (NVIDIA NIM, OpenRouter, a local vLLM/Ollama `/v1`) works by changing the base URL.
 
 Agents depend only on the `ChatProvider` interface — **no agent imports `litellm`/`instructor` or hardcodes a model id** (guarded by `test_model_provider.py`).
 
 | Variable | Default | Meaning |
 |:---|:---|:---|
-| `LLM_API_BASE` | `https://integrate.api.nvidia.com/v1` | OpenAI-compatible base URL |
+| `LLM_API_BASE` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL |
 | `LLM_API_KEY` | *(blank)* | Endpoint key. **Blank = fully offline** — templated prose, zero API calls |
-| `LLM_MODEL` | `nvidia/llama-3.1-nemotron-70b-instruct` | **Primary** model |
-| `LLM_FALLBACK_MODEL` | `mistralai/mistral-large-2-instruct` | **Fallback**, tried automatically when the primary raises |
+| `LLM_MODEL` | `openai/gpt-oss-120b` | **Primary** model |
+| `LLM_FALLBACK_MODEL` | `openai/gpt-oss-20b` | **Fallback**, tried automatically when the primary raises |
 | `LLM_TIMEOUT` | `25` | Per-call timeout (seconds) |
 
 `get_chat_provider()` builds both models, wraps them in `FailoverChatProvider` (primary → fallback on any error), then in `GuardedChatProvider`.
 
 > [!WARNING]
-> **Do not swap model ids without probing them first.** Both models must support **tool/function calling**, because instructor needs structured output. Most of the NIM catalogue does not: it raises `InstructorRetryException`, times out, or returns `404 "Function ... not found for account"` — the `/v1/models` list is NVIDIA's *public catalogue*, not what a given key may invoke. Size cuts both ways: `meta/llama-3.1-8b-instruct` was too small to satisfy the Pydantic schemas and raised `InstructorRetryException` on nearly every call, so the primary is now `nvidia/llama-3.1-nemotron-70b-instruct` — but entitlement is still per-account, so re-probe rather than assume a larger id works. Ids also get withdrawn: NVIDIA retired `nvidia/nvidia-nemotron-nano-9b-v2` on 2026-08-26 and it now returns **HTTP 410**, which `is_model_retired_error` treats as permanent so failover skips straight to the fallback instead of re-prompting a model that no longer exists. A fallback that cannot do structured output is worse than none — every failover burns the full timeout budget before failing anyway. Probe with a real `provider.complete(response_model=...)` call, not a plain chat completion.
+> **Do not swap model ids without probing them first.** Both models must support **tool/function calling**, because instructor needs structured output; a model that cannot do it fails every call with `InstructorRetryException` rather than degrading. **Model ids are host-specific** — a name that is valid on one provider generally 404s on another, and a provider's public model list is not the same as what a given key may invoke, so ids must move together with `LLM_API_BASE`. Size is not a proxy for reliability in either direction: a model can be too small to satisfy the Pydantic schemas, while a larger id may simply not be available to you. Ids also get **withdrawn**, which returns **HTTP 410** — `is_model_retired_error` treats that as permanent, so failover skips straight to the fallback instead of burning instructor retries on a model that no longer exists. A fallback that cannot do structured output is worse than none — every failover burns the full timeout budget before failing anyway. Probe with a real `provider.complete(response_model=...)` call, not a plain chat completion.
+>
+> **Groq ids carry an `openai/` namespace** (`openai/gpt-oss-120b`), which collides with LiteLLM's provider-routing prefix. `_routed_model()` therefore sends `openai/openai/gpt-oss-120b`: LiteLLM strips one layer and Groq receives the full id. The double prefix is correct — see the comment in `packages/agents/model_provider.py` before "fixing" it.
 
 ### Guardrails & rate limiting
 
@@ -274,8 +276,8 @@ Upstox addresses instruments by `<SEGMENT>|<ISIN>` (e.g. `NSE_EQ|INE002A01018`),
 ![instructor](https://img.shields.io/badge/instructor-4B32C3?style=for-the-badge&logoColor=white)
 ![LangSmith](https://img.shields.io/badge/LangSmith-1C3C3C?style=for-the-badge&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge&logoColor=white)
-![NVIDIA NIM](https://img.shields.io/badge/NVIDIA%20NIM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
-![Llama](https://img.shields.io/badge/Llama%203.1-0866FF?style=for-the-badge&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logo=groq&logoColor=white)
+![GPT-OSS](https://img.shields.io/badge/GPT--OSS%20120B-412991?style=for-the-badge&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white)
 ![Upstox](https://img.shields.io/badge/Upstox-5B2C8D?style=for-the-badge&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)

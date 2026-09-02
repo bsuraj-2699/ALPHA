@@ -1,10 +1,10 @@
 """Resolve the single hosted LLM backend used for narration.
 
 The system uses ONE OpenAI-compatible provider that serves open-weight models
-(default: NVIDIA NIM). Two model ids are configured — a primary and a fallback —
-and both are fully capable of every narration call. The provider is
+(default: Groq). Two model ids are configured — a primary and a fallback — and
+both are fully capable of every narration call. The provider is
 OpenAI-compatible, so the same wiring works if the operator points
-``LLM_API_BASE`` at any other compatible host (Groq, OpenRouter, a local
+``LLM_API_BASE`` at any other compatible host (NVIDIA NIM, OpenRouter, a local
 vLLM/Ollama ``/v1``).
 
 The Rule Engine and the deterministic decision path never touch this module —
@@ -13,16 +13,16 @@ LLMs only ever write prose.
 Environment
 -----------
 LLM_API_BASE
-    OpenAI-compatible base URL. Default: NVIDIA NIM
-    (``https://integrate.api.nvidia.com/v1``).
+    OpenAI-compatible base URL. Default: Groq
+    (``https://api.groq.com/openai/v1``).
 LLM_API_KEY
     API key for the endpoint. When empty the whole pipeline runs offline with
     templated prose (no external calls).
 LLM_MODEL
-    Primary model id. Default ``meta/llama-3.2-90b-vision-instruct``.
+    Primary model id. Default ``openai/gpt-oss-120b``.
 LLM_FALLBACK_MODEL
     Fallback model id used when the primary call fails (quota / outage / error).
-    Default ``meta/llama-3.2-90b-vision-instruct``.
+    Default ``openai/gpt-oss-20b``.
 """
 
 from __future__ import annotations
@@ -41,14 +41,21 @@ LLM_API_KEY_ENV_NAMES: tuple[str, ...] = (
     "LLM_API_BASE",
 )
 
-DEFAULT_API_BASE = "https://integrate.api.nvidia.com/v1"
+# Groq's OpenAI-compatible endpoint. This default and the model ids below must
+# move together: an id is only meaningful within its endpoint's namespace, so a
+# stale base_url sends valid-looking ids to the wrong host and the resulting
+# 404 names the wrong provider.
+DEFAULT_API_BASE = "https://api.groq.com/openai/v1"
 # Both must support tool/function calling: instructor needs structured output,
-# and most NIM catalogue models fail it (InstructorRetryException) or are not
-# entitled for a given account (404 "Function ... not found"), while a retired
-# id returns 410 (see ``is_model_retired_error``). Re-probe with a real
+# and a model that cannot do it fails every call (InstructorRetryException)
+# rather than degrading. Ids are host-specific — a name valid on one provider
+# generally 404s on another — and can be withdrawn outright, which returns 410
+# (see ``is_model_retired_error``). Groq namespaces these ids as ``openai/...``,
+# which collides with LiteLLM's routing prefix; see ``_routed_model`` in
+# ``model_provider.py``. Re-probe with a real
 # ``provider.complete(response_model=...)`` call before changing either id.
-DEFAULT_PRIMARY_MODEL = "meta/llama-3.2-90b-vision-instruct"
-DEFAULT_FALLBACK_MODEL = "meta/llama-3.2-90b-vision-instruct"
+DEFAULT_PRIMARY_MODEL = "openai/gpt-oss-120b"
+DEFAULT_FALLBACK_MODEL = "openai/gpt-oss-20b"
 
 _instructor_client: object | None = None
 

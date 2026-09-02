@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 
 _RULES_PATH = Path(__file__).resolve().parents[1] / "core" / "rules.json"
 
-DEFAULT_CHAT_MODEL = "meta/llama-3.3-70b-instruct"
+DEFAULT_CHAT_MODEL = "openai/gpt-oss-120b"
 DEFAULT_MAX_TOKENS   = 4096
 
 PARSE_SYSTEM_PROMPT = """You parse a single user query about an Indian stock (NSE/BSE) into a strict JSON record.

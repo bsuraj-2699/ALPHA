@@ -24,7 +24,7 @@ class _DebateAgent:
     def __init__(
         self,
         narrator: DebateNarrator | None = None,
-        chat_model: str = "meta/llama-3.3-70b-instruct",
+        chat_model: str = "openai/gpt-oss-120b",
         max_tokens: int = 1500,
         temperature: float = 0.3,
     ) -> None:
