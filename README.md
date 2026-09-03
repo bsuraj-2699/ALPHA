@@ -10,7 +10,6 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-FF6B35?style=for-the-badge&logoColor=white)
-![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)
 
 <br/>
 
@@ -257,7 +256,6 @@ Interactive docs at `/docs`. Everything under `/api`; `IN` is the only accepted 
 | `eval/` | Offline scenario / backtest harness (**not** used by the live API) |
 | `infra/` | Docker Compose — Postgres (Timescale), Redis, Qdrant only |
 | `scripts/` | Critical-path benchmark, Excel export, context debug |
-| `render.yaml` | Render Blueprint for deploying `apps/api` |
 
 ### Context data — Upstox instrument master
 
@@ -280,7 +278,6 @@ Upstox addresses instruments by `<SEGMENT>|<ISIN>` (e.g. `NSE_EQ|INE002A01018`),
 ![GPT-OSS](https://img.shields.io/badge/GPT--OSS%20120B-412991?style=for-the-badge&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white)
 ![Upstox](https://img.shields.io/badge/Upstox-5B2C8D?style=for-the-badge&logoColor=white)
-![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
 </div>
