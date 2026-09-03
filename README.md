@@ -388,31 +388,27 @@ uv run pytest packages/core/tests/test_confidence.py::test_confidence_is_zero_to
 
 ---
 
-## ☁️ Deployment — Render + Vercel
+## ☁️ Deployment — Oracle Cloud + Vercel
+### 1. API on Oracle cloud
+1.The FastAPI backend runs on an Oracle Cloud Compute instance. The repository is deployed to the instance and the API is started with Uvicorn as a long-running process.
+2.Provision an Oracle Cloud Compute instance and connect to it through SSH
+3.Clone the GitHub repository on the Oracle Cloud instance
+4.Install Python dependencies and configure the backend .env
+5.Configure the required environment variables, including LLM_API_KEY, UPSTOX_*, DATABASE_URL, REDIS_URL / QDRANT_URL where applicable
+6.Start the FastAPI application from the repository root
+7.Keep the API process running continuously and expose the API port through the Oracle Cloud network/security rules
+8.Set ALLOW_ORIGINS to the Vercel frontend origin, e.g. https://your-app.vercel.app
 
-> The FastAPI agent (`apps/api`) doesn't fit Vercel's serverless model — execution time limits, no long-lived process for the schedulers, and Redis-backed checkpoints need an always-on host. The Next.js UI (`apps/web`) is a great fit for Vercel.
-
-### 1. API on Render
-
-1. Push the repo to GitHub
-2. Render Dashboard → **New → Blueprint** → select repo → confirms the `alpha-api` web service from `render.yaml`
-3. Add environment variables under **Environment** (mark `LLM_API_KEY`, `UPSTOX_*`, `DATABASE_URL` as **Secret**)
-4. Set `ALLOW_ORIGINS` to your frontend origin(s), e.g. `https://your-app.vercel.app`
-5. Optional: spin up Render Postgres + Render Key Value (Redis) in the same region and wire `DATABASE_URL` / `REDIS_URL`
-
-**Blueprint knobs** (`render.yaml`): `region` is `singapore` (low latency to India), `PYTHON_VERSION` is `3.12.8`, and `plan` ships as **`Free`**.
-
-> [!WARNING]
-> The Free plan **sleeps on idle**, which breaks SSE streams and stops the intraday/daily schedulers. Move to `starter` or above for anything you actually rely on.
-
-**Build/start:** `pip install .` from the repo root, then `uvicorn apps.api.main:app --host 0.0.0.0 --port $PORT --workers 1`. Health check: `GET /health`.
+###Backend start command:
+uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --workers 1
 
 ### 2. Frontend on Vercel
-
-1. Import the GitHub repo
-2. **Root Directory:** `apps/web` — critical, don't use the monorepo root
-3. Build: default `npm run build`
-4. Env var: `NEXT_PUBLIC_API_URL` = your Render API URL, **no trailing slash** (e.g. `https://alpha-api.onrender.com`)
+1.Import the GitHub repository into Vercel
+2.Root Directory: apps/web — critical, don't use the monorepo root
+3.Build: default npm run build
+4.Add the environment variable NEXT_PUBLIC_API_URL
+5.Set NEXT_PUBLIC_API_URL to the Oracle Cloud backend URL, with no trailing slash, e.g. https://your-api-domain.com or http://<oracle-cloud-public-ip>:8000 when using the API directly
+6.Redeploy the frontend after changing the environment variable
 
 ### 3. Smoke test
 
