@@ -1,7 +1,5 @@
 # ALPHA — Product Requirements Document (Initial, v1.0)
 
-**Product:** ALPHA — Multi-Agent Equity Analysis Platform **Document type:** Initial PRD (baseline scope and vision) **Version:** 1.0 · **Status:** Baseline for build approval **Product owner:** bsuraj-2699 (repository owner) **Basis:** Reconstructed on 16 November 2026 from the ALPHA repository (README, CLAUDE.md, rules.json changelog, schemas, evaluation harness, early-stage artefacts). Statements about original intent are inferred from those artefacts and marked as assumptions where evidence is indirect.
-
 ## 1. Purpose of this document
 
 This PRD defines the original product vision, scope and requirements for ALPHA before the production hardening described in the Final PRD. It answers four questions: what problem is being solved, for whom, what the first release must do, and how success is judged. It is the reference point against which the Final PRD measures how far the product evolved.
